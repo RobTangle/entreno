@@ -19,12 +19,14 @@ function assert(cond, msg) {
 
 function track(page) {
   const logs = [];
+  logs.dialogs = [];
   page.on('pageerror', (err) => logs.push('pageerror: ' + err.message));
   page.on('console', (msg) => {
     if (msg.type() === 'error') logs.push('console: ' + msg.text());
   });
   page.on('dialog', async (d) => {
-    if (/entreno en curso/i.test(d.message())) {
+    logs.dialogs.push(d.message());
+    if (/entreno en curso|dar por hecho/i.test(d.message())) {
       await d.accept();
       return;
     }
@@ -332,6 +334,126 @@ async function fuerzaBFlow(browser) {
   await context.close();
 }
 
+function miniRoutine(circuit) {
+  return {
+    schema: 2,
+    equipment: 'test',
+    history: [{ id: 'prev', date: '2026-03-01T12:00:00.000Z', routine: 'viejo', minutes: 10, exercises: [{ name: 'swing', sets: [{ reps: '5', kg: '8' }] }] }],
+    active: null,
+    routines: [{
+      id: 't',
+      name: 'prueba series',
+      circuit: !!circuit,
+      warmup: [],
+      exercises: [
+        { id: 'a', name: 'sentadilla goblet', sets: 2, mode: 'reps', reps: '10', secs: 0, weight: '14', rest: 30, note: '' },
+        { id: 'b', name: 'remo a una mano', sets: 1, mode: 'reps', reps: '8', secs: 0, weight: '14', rest: 20, note: '' },
+        { id: 'c', name: 'swing', sets: 2, mode: 'reps', reps: '12', secs: 0, weight: '14', rest: 30, note: '' },
+      ],
+    }],
+  };
+}
+
+async function openMini(browser, seed) {
+  const context = await browser.newContext({ serviceWorkers: 'allow' });
+  const page = await context.newPage();
+  const logs = track(page);
+  await page.addInitScript((payload) => {
+    if (!localStorage.getItem('entreno.v1')) localStorage.setItem('entreno.v1', JSON.stringify(payload));
+  }, seed);
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.getByRole('button', { name: /empezar/ }).click();
+  await page.locator('.exname').waitFor();
+  return { context, page, logs };
+}
+
+async function skipRest(page) {
+  await page.getByRole('button', { name: 'saltar', exact: true }).click();
+  await page.locator('[data-set-done]').waitFor();
+}
+
+async function straightMode(browser) {
+  const { context, page, logs } = await openMini(browser, miniRoutine(false));
+  const app = () => page.locator('#app').innerText();
+  assert(!(await app()).includes('vuelta 1 de'), 'straight mode does not show rounds');
+  assert((await page.locator('[data-circuit]').getAttribute('data-circuit')) === 'off', 'modo circuito starts off');
+  const serie = page.locator('[data-set-done]');
+  const hecho = page.locator('[data-exercise-done]');
+  await serie.waitFor();
+  await hecho.waitFor();
+  assert(((await serie.getAttribute('class')) || '').includes('ok'), 'serie hecha stays the primary button');
+  assert(!((await hecho.getAttribute('class')) || '').includes('ok'), 'ejercicio hecho is secondary');
+  assert(/ejercicio hecho → siguiente/.test(await hecho.innerText()), 'ejercicio hecho label');
+  await page.locator('[data-prev]').waitFor();
+  await page.locator('[data-next]').waitFor();
+  await page.locator('[data-next]').click();
+  assert(/remo a una mano/i.test(await page.locator('.exname').innerText()), 'siguiente ejercicio moves forward');
+  await page.locator('[data-prev]').click();
+  assert(/sentadilla goblet/i.test(await page.locator('.exname').innerText()), 'ejercicio anterior moves back');
+  await serie.click();
+  await skipRest(page);
+  assert(/sentadilla goblet/i.test(await page.locator('.exname').innerText()), 'straight mode stays on the exercise after one set');
+  assert(/serie 2 de 2/i.test(await app()), 'second set of the same exercise');
+  await page.locator('[data-set-done]').click();
+  await skipRest(page);
+  assert(/remo a una mano/i.test(await page.locator('.exname').innerText()), 'straight mode moves on only after every set');
+  const before = logs.dialogs.length;
+  await page.locator('[data-exercise-done]').click();
+  assert(logs.dialogs.slice(before).some((m) => /queda 1 serie/i.test(m)), 'confirm when sets remain');
+  assert(/swing/i.test(await page.locator('.exname').innerText()), 'ejercicio hecho goes to the next exercise');
+  await page.locator('[data-set-done]').click();
+  await skipRest(page);
+  await page.locator('[data-exercise-done]').click();
+  await page.getByText(/bien ahí/i).waitFor();
+  const state = await readState(page);
+  assert(state.history[0].routine === 'prueba series', 'the finished session is saved first');
+  const saved = state.history.find((h) => h.routine === 'prueba series');
+  const names = saved.exercises.map((e) => e.name);
+  assert(names.join(',') === 'sentadilla goblet,swing', 'skipped exercise is not logged as work');
+  assert(saved.exercises[0].sets.length === 2 && saved.exercises[1].sets.length === 1, 'straight history keeps only sets that were done');
+  assert(saved.exercises.every((e) => e.sets.every((s) => !s.skip && s.reps)), 'history sets have no skip markers');
+  assert(state.history.some((h) => h.id === 'prev' && h.routine === 'viejo' && h.exercises[0].sets[0].reps === '5'), 'previous history entry is intact');
+  assert(logs.length === 0, 'straight mode has no console errors: ' + logs.join(' | '));
+  await context.close();
+}
+
+async function circuitMode(browser) {
+  const { context, page, logs } = await openMini(browser, miniRoutine(false));
+  await page.locator('[data-circuit="off"]').click();
+  assert((await page.locator('[data-circuit]').getAttribute('data-circuit')) === 'on', 'modo circuito can be switched on at the start');
+  assert(/vuelta 1 de 2/i.test(await page.locator('#app').innerText()), 'circuit header shows vuelta 1 of max sets');
+  let stored = await readState(page);
+  assert(stored.routines[0].circuit === true, 'the toggle is saved on the routine');
+  const name = async () => page.locator('.exname').innerText();
+  await page.locator('[data-set-done]').click();
+  await skipRest(page);
+  assert(/remo a una mano/i.test(await name()), 'circuit serie hecha moves to the next exercise');
+  assert(/vuelta 1 de 2/i.test(await page.locator('#app').innerText()), 'still round 1');
+  await page.locator('[data-set-done]').click();
+  await skipRest(page);
+  assert(/swing/i.test(await name()), 'circuit continues across the round');
+  await page.locator('[data-set-done]').click();
+  await skipRest(page);
+  assert(/vuelta 2 de 2/i.test(await page.locator('#app').innerText()), 'second round starts');
+  assert(/sentadilla goblet/i.test(await name()), 'round 2 returns to the first exercise');
+  assert(!/remo a una mano/i.test(await name()), 'the 1-set exercise is not up in round 2');
+  await page.locator('[data-set-done]').click();
+  await skipRest(page);
+  assert(/swing/i.test(await name()), 'round 2 skips the shorter exercise');
+  assert(/vuelta 2 de 2/i.test(await page.locator('#app').innerText()), 'still round 2 on the last exercise');
+  await page.locator('[data-set-done]').click();
+  await page.getByText(/bien ahí/i).waitFor();
+  const state = await readState(page);
+  const saved = state.history.find((h) => h.routine === 'prueba series');
+  const byName = Object.fromEntries(saved.exercises.map((e) => [e.name, e.sets.length]));
+  assert(byName['sentadilla goblet'] === 2 && byName['remo a una mano'] === 1 && byName.swing === 2, 'circuit history logs one set per visit');
+  assert(saved.exercises.every((e) => e.sets.every((s) => !s.skip && String(s.reps) !== '')), 'circuit history has only real sets');
+  assert(state.history.some((h) => h.id === 'prev' && h.routine === 'viejo'), 'circuit finish does not rewrite older history');
+  assert(logs.dialogs.length === 0, 'circuit serie hecha does not ask to skip sets');
+  assert(logs.length === 0, 'circuit mode has no console errors: ' + logs.join(' | '));
+  await context.close();
+}
+
 const server = await startServer();
 const browser = await chromium.launch({
   channel: 'chrome',
@@ -342,6 +464,8 @@ try {
   await freshFlow(browser);
   await migrationFlow(browser);
   await fuerzaBFlow(browser);
+  await straightMode(browser);
+  await circuitMode(browser);
 } finally {
   await browser.close();
   server.kill();

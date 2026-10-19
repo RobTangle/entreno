@@ -26,6 +26,12 @@ button{font:inherit;text-transform:lowercase;border:0;border-radius:14px;min-hei
 button:active{transform:scale(.97)}
 .pri{background:var(--acc);color:#111;font-weight:700}.ok{background:var(--ok);color:#06210f;font-weight:700}.danger{background:#3a1d1f;color:#ff8a8c}
 .big{width:100%;min-height:68px;font-size:22px}
+.sec{background:transparent;color:var(--tx);border:2px solid var(--acc);font-weight:700}
+.navex{display:flex;gap:10px;margin-top:14px}
+.navex button{flex:1;min-height:58px;font-size:16px;font-weight:700}
+.circuit{width:100%;margin:8px 0 12px}
+.circuit.on{background:var(--acc);color:#111;font-weight:700}
+.vueltas{font-size:22px;font-weight:800;color:var(--acc);margin:4px 0}
 .row{display:flex;gap:10px}.row>*{flex:1}
 .ico{min-width:52px;padding:0;font-size:22px;flex:0 0 52px}
 .ex{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:12px;padding:8px 8px 8px 12px;margin:8px 0;flex-wrap:wrap}
@@ -335,6 +341,7 @@ function vEdit(){
   if(!Array.isArray(r.warmup))r.warmup=[];
   let h=`<div class="top"><button class="ico" onclick="go('home')">←</button><h1>editar</h1></div>
   <label>nombre</label><input value="${esc(r.name)}" onchange="R('${r.id}').name=this.value.trim()||'sin nombre';save()">
+  <button type="button" class="circuit${r.circuit?' on':''}" data-circuit="${r.circuit?'on':'off'}" onclick="setRoutineCircuit()">${r.circuit?'modo circuito: sí':'modo circuito: no'}</button>
   <h2>entrada en calor</h2>`;
   if(!r.warmup.length)h+=`<div class="empty">sin entrada en calor.</div>`;
   r.warmup.forEach((d,i)=>{h+=`<div class="exline"><div class="t"><b>${i+1}. ${esc(d.name)}</b><div class="mut">${d.secs} s${d.cue?' · '+esc(d.cue):''}</div></div>
@@ -419,6 +426,12 @@ function delWu(){
   save();closeModal();render();
 }
 function closeModal(){const m=$('#modal');if(m)m.innerHTML='';draft=null;draftWu=null}
+function setRoutineCircuit(){
+  const r=R(view.rid);if(!r)return;
+  r.circuit=!r.circuit;
+  if(S.active&&S.active.rid===r.id&&!workoutHasRealSets(S.active))S.active.circuit=!!r.circuit;
+  save();render();
+}
 
 /* ---------- workout ---------- */
 function startWorkout(rid){
@@ -426,7 +439,7 @@ function startWorkout(rid){
   if(S.active&&!confirm('ya hay un entreno en curso. ¿lo descarto y empiezo este?'))return;
   unlockAudio();
   const wu=(r.warmup||[]).filter(d=>d&&d.secs>0).map(d=>({...d}));
-  S.active={rid,name:r.name,start:Date.now(),ex:JSON.parse(JSON.stringify(r.exercises)),i:0,s:0,
+  S.active={rid,name:r.name,start:Date.now(),ex:JSON.parse(JSON.stringify(r.exercises)),i:0,s:0,round:0,circuit:!!r.circuit,
     phase:wu.length?'warmup':'ready',end:wu.length?Date.now()+wu[0].secs*1000:0,wu,wui:0,
     log:r.exercises.map(e=>({name:e.name,sets:[]})),cur:null};
   if(!wu.length)primeCur();
@@ -452,6 +465,7 @@ function vWarmup(){
   const left=(A.end-Date.now())/1000;
   const elMin=Math.floor((Date.now()-A.start)/60000);
   return `<div data-warmup><div class="top"><button class="ico" onclick="go('home')">←</button><h1 style="font-size:18px">${esc(A.name)}</h1><span class="mut">${elMin} min</span></div>
+  ${circuitToggleHtml()}
   <div class="phase">entrada en calor</div>
   <div class="mut">paso ${A.wui+1} de ${list.length}</div>
   <div class="exname">${esc(d.name)}</div>
@@ -467,11 +481,15 @@ function vWorkout(){
   if(A.phase==='warmup')return vWarmup();
   const e=A.ex[A.i],el=Math.floor((Date.now()-A.start)/60000);
   const dots=A.ex.map((x,k)=>`<span class="${k<A.i?'d':k===A.i?'c':''}"></span>`).join('');
+  const serieN=A.circuit?(A.round||0)+1:A.s+1;
+  const head=A.circuit?`<div class="vueltas" data-vueltas>vuelta ${serieN} de ${roundCount(A)}</div>`:`<div class="mut">ejercicio ${A.i+1} de ${A.ex.length}</div>`;
   let h=`<div class="top"><button class="ico" onclick="go('home')">←</button><h1 style="font-size:18px">${esc(A.name)}</h1><span class="mut">${el} min</span></div>
-  <div class="dots">${dots}</div><div class="mut">ejercicio ${A.i+1} de ${A.ex.length}</div>
+  ${circuitToggleHtml()}
+  <div class="dots">${dots}</div>${head}
+  ${A.circuit?`<div class="mut">ejercicio ${A.i+1} de ${A.ex.length}</div>`:''}
   <div class="exname">${esc(e.name)}</div>
   ${guideBtn(e.name)}
-  <div><span class="pill">serie ${A.s+1} de ${e.sets}</span><span class="pill">${target(e)}</span><span class="pill">${kg(e.weight)}</span>${e.note?`<span class="pill">${esc(e.note)}</span>`:''}</div>`;
+  <div><span class="pill">serie ${serieN} de ${e.sets}</span><span class="pill">${target(e)}</span><span class="pill">${kg(e.weight)}</span>${e.note?`<span class="pill">${esc(e.note)}</span>`:''}</div>`;
   if(A.phase==='rest'||A.phase==='work'){
     const left=(A.end-Date.now())/1000;
     const nxt=A.phase==='rest'?nextLabel():'';
@@ -485,38 +503,164 @@ function vWorkout(){
     <label>kg</label><div class="stepper"><button onclick="adj('kg',-1)">−</button><input id="c_kg" inputmode="decimal" value="${esc(A.cur.kg)}" placeholder="corporal" onchange="S.active.cur.kg=this.value;save()"><button onclick="adj('kg',1)">+</button></div>
     </div>
     ${t?`<button class="big pri" onclick="startWork()">▶ arrancar ${e.secs} s</button><div style="height:10px"></div>`:''}
-    <button class="big ${t?'':'ok'}" onclick="setDone()">✓ serie hecha</button>`;
+    <button class="big ${t?'':'ok'}" data-set-done onclick="setDone()">✓ serie hecha</button>
+    <button class="big sec" data-exercise-done onclick="exerciseDone()">ejercicio hecho → siguiente</button>`;
   }
-  const done=A.log[A.i].sets;
+  const logged=A.log[A.i].sets||[];
+  const done=logged.filter(s=>!s.skip);
+  const skipped=logged.length-done.length;
   if(done.length)h+=`<h2>series hechas</h2><div class="card">${done.map((s,k)=>`<div>serie ${k+1}: ${esc(s.reps)} ${e.mode==='time'?'s':'reps'} · ${s.kg?esc(s.kg)+' kg':'corporal'}</div>`).join('')}</div>`;
-  h+=`<div class="row" style="margin-top:14px"><button onclick="prevEx()">← ej. anterior</button><button onclick="skipEx()">saltar ej. →</button></div>
+  if(skipped)h+=`<p class="mut">${skipped} ${skipped===1?'serie salteada':'series salteadas'}</p>`;
+  h+=`<div class="navex"><button data-prev onclick="prevEx()">← ejercicio anterior</button><button data-next onclick="skipEx()">ejercicio siguiente →</button></div>
   <button class="big" style="margin-top:10px" onclick="finishWorkout()">terminar entreno</button>`;
   return h;
 }
-function nextLabel(){const A=S.active,e=A.ex[A.i];
-  if(A.s<e.sets)return `serie ${A.s+1} de ${e.name}`;const n=A.ex[A.i+1];return n?n.name:'fin 🎉'}
+function roundCount(A){let m=1;(A.ex||[]).forEach(e=>{const n=+e.sets||1;if(n>m)m=n});return m}
+function doneCount(A,i){return ((A.log[i]&&A.log[i].sets)||[]).filter(s=>!s.skip).length}
+function workoutHasRealSets(A){return (A.log||[]).some(l=>(l.sets||[]).some(s=>!s.skip))}
+function circuitToggleHtml(){
+  const A=S.active;if(!A)return '';
+  const on=!!A.circuit;
+  if(workoutHasRealSets(A))return on?'<div class="pill">modo circuito</div>':'';
+  return `<button type="button" class="circuit${on?' on':''}" data-circuit="${on?'on':'off'}" onclick="toggleCircuit()">modo circuito: ${on?'sí':'no'}</button>`;
+}
+function toggleCircuit(){
+  const A=S.active;if(!A||workoutHasRealSets(A))return;
+  A.circuit=!A.circuit;A.round=0;
+  const r=R(A.rid);if(r)r.circuit=!!A.circuit;
+  save();render();
+}
+function findCircuit(fromI,fromRound){
+  const A=S.active;if(!A)return null;
+  const Y=roundCount(A);
+  let i=fromI,round=fromRound||0;
+  for(let n=0;n<A.ex.length*Y+1;n++){
+    i++;
+    if(i>=A.ex.length){round++;i=0}
+    if(round>=Y)return null;
+    const e=A.ex[i];
+    const filled=((A.log[i]&&A.log[i].sets)||[]).length;
+    if((+e.sets||1)>round && filled<(+e.sets||1))return {i,round};
+  }
+  return null;
+}
+function stepCircuit(){
+  const A=S.active;if(!A)return;
+  const n=findCircuit(A.i,A.round||0);
+  if(!n){finishWorkout(true);return}
+  A.i=n.i;A.round=n.round;A.s=doneCount(A,A.i);A.phase='ready';A.end=0;primeCur();
+}
+function nextLabel(){
+  const A=S.active,e=A.ex[A.i];
+  if(A.circuit){
+    const n=findCircuit(A.i,A.round||0);
+    if(!n)return 'fin 🎉';
+    return `vuelta ${n.round+1}: ${A.ex[n.i].name}`;
+  }
+  if(A.s<e.sets)return `serie ${A.s+1} de ${e.name}`;
+  const n=A.ex[A.i+1];return n?n.name:'fin 🎉';
+}
 function adj(k,d){const A=S.active,el=$('#c_'+k);let v=parseFloat(String(el.value).replace(',','.'))||0;
   const step=k==='kg'?1:(A.ex[A.i].mode==='time'?5:1);v=Math.max(0,v+d*step);A.cur[k]=String(v);el.value=v;save()}
 function readCur(){const A=S.active;const r=$('#c_reps'),k=$('#c_kg');if(r)A.cur.reps=r.value.trim();if(k)A.cur.kg=k.value.trim()}
 function startWork(){readCur();unlockAudio();const A=S.active,e=A.ex[A.i];A.phase='work';A.end=Date.now()+e.secs*1000;A.workStart=Date.now();save();render()}
 function endWork(){const A=S.active;const did=Math.round((Date.now()-A.workStart)/1000);A.cur.reps=String(Math.min(did,A.ex[A.i].secs));A.phase='ready';setDone(true)}
 function setDone(fromWork){
-  if(!fromWork)readCur();unlockAudio();const A=S.active,e=A.ex[A.i];
+  if(!fromWork)readCur();unlockAudio();const A=S.active;if(!A||A.phase==='done')return;
+  const e=A.ex[A.i];
+  if(!A.cur)primeCur();
   A.log[A.i].sets.push({reps:A.cur.reps===''?(e.reps||''):A.cur.reps,kg:A.cur.kg||''});
-  A.s++;
-  const last=A.i===A.ex.length-1&&A.s>=e.sets;
+  if(A.circuit){
+    const nxt=findCircuit(A.i,A.round||0);
+    if(!nxt){finishWorkout(true);return}
+    if((e.rest||0)>0){A.phase='rest';A.end=Date.now()+e.rest*1000;save();render();return}
+    stepCircuit();
+    if(A.phase!=='done'){save();render()}
+    return;
+  }
+  A.s=doneCount(A,A.i);
+  const last=A.i===A.ex.length-1&&A.s>=(e.sets||1);
   if(last){finishWorkout(true);return}
-  if(e.rest>0){A.phase='rest';A.end=Date.now()+e.rest*1000}else advance();
+  if((e.rest||0)>0){A.phase='rest';A.end=Date.now()+e.rest*1000}else advance();
   save();render();
 }
-function advance(){const A=S.active,e=A.ex[A.i];A.phase='ready';if(A.s>=e.sets){A.i++;A.s=0}primeCur()}
-function endRest(){advance();save();render()}
+function advance(){
+  const A=S.active;if(!A||A.phase==='done')return;
+  A.phase='ready';A.end=0;
+  if(A.circuit){stepCircuit();return}
+  const e=A.ex[A.i];
+  if(A.s>=(e.sets||1)){
+    if(A.i>=A.ex.length-1){finishWorkout(true);return}
+    A.i++;
+  }
+  if(A.phase==='done')return;
+  A.s=doneCount(A,A.i);
+  primeCur();
+}
+function endRest(){advance();if(!S.active||S.active.phase==='done')return;save();render()}
 function addTime(d){const A=S.active;A.end=Math.max(Date.now()+1000,A.end+d*1000);save();render()}
-function skipEx(){const A=S.active;if(A.i>=A.ex.length-1){finishWorkout();return}A.i++;A.s=0;A.phase='ready';primeCur();save();render()}
-function prevEx(){const A=S.active;if(A.i===0)return;A.i--;A.s=A.log[A.i].sets.length;const e=A.ex[A.i];if(A.s>=e.sets)A.s=e.sets-1;A.phase='ready';primeCur();save();render()}
+function placeOn(i){
+  const A=S.active,e=A.ex[i];
+  A.i=i;A.phase='ready';A.end=0;
+  A.s=doneCount(A,i);
+  if(!A.circuit && A.s>=(e.sets||1))A.s=Math.max(0,(e.sets||1)-1);
+  primeCur();
+}
+function skipEx(){
+  const A=S.active;if(!A)return;
+  if(A.circuit){
+    const n=findCircuit(A.i,A.round||0);
+    if(!n){finishWorkout();return}
+    A.round=n.round;placeOn(n.i);save();render();return;
+  }
+  if(A.i>=A.ex.length-1){finishWorkout();return}
+  placeOn(A.i+1);save();render();
+}
+function prevEx(){
+  const A=S.active;if(!A)return;
+  if(A.circuit){
+    const Y=roundCount(A);
+    let i=A.i,round=A.round||0;
+    for(let n=0;n<A.ex.length*Y;n++){
+      i--;
+      if(i<0){round--;i=A.ex.length-1}
+      if(round<0)return;
+      const e=A.ex[i];
+      const filled=((A.log[i]&&A.log[i].sets)||[]).length;
+      if((+e.sets||1)>round && filled<(+e.sets||1)){A.round=round;placeOn(i);save();render();return}
+    }
+    return;
+  }
+  if(A.i===0)return;
+  placeOn(A.i-1);save();render();
+}
+function exerciseDone(){
+  const A=S.active;if(!A||A.phase==='done')return;
+  const e=A.ex[A.i];
+  const have=((A.log[A.i]&&A.log[A.i].sets)||[]).length;
+  const remain=Math.max(0,(+e.sets||1)-have);
+  if(remain>0){
+    const msg=remain===1?'¿dar por hecho este ejercicio? queda 1 serie, la marco salteada.':'¿dar por hecho este ejercicio? quedan '+remain+' series, las marco salteadas.';
+    if(!confirm(msg))return;
+  }
+  for(let k=0;k<remain;k++)A.log[A.i].sets.push({reps:'',kg:'',skip:true});
+  A.phase='ready';A.end=0;
+  if(A.circuit){
+    if(!findCircuit(A.i,A.round||0)){finishWorkout(true);return}
+    stepCircuit();
+    if(A.phase!=='done'){save();render()}
+    return;
+  }
+  if(A.i>=A.ex.length-1){finishWorkout(true);return}
+  placeOn(A.i+1);save();render();
+}
+function loggedExercises(log){
+  return (log||[]).map(l=>({name:l.name,sets:(l.sets||[]).filter(s=>!s.skip).map(s=>({reps:s.reps,kg:s.kg||''}))})).filter(l=>l.sets.length);
+}
 function finishWorkout(auto){
-  const A=S.active;if(!auto&&!confirm('¿terminar y guardar el entreno?'))return;
-  const sets=A.log.filter(l=>l.sets.length);
+  const A=S.active;if(!A||A.phase==='done')return;
+  if(!auto&&!confirm('¿terminar y guardar el entreno?'))return;
+  const sets=loggedExercises(A.log);
   if(sets.length){S.history.unshift({id:uid(),date:new Date(A.start).toISOString(),routine:A.name,minutes:Math.max(1,Math.round((Date.now()-A.start)/60000)),exercises:sets})}
   A.phase='done';A.saved=sets.length>0;save();wakeOff();if(auto)beep(4);render();
 }
