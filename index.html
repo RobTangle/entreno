@@ -271,7 +271,13 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 const R=id=>S.routines.find(r=>r.id===id);
 const fmt=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 const target=e=>e.mode==='time'?e.secs+' s':(e.reps||'—')+' reps';
-const kg=w=>w?esc(w)+' kg':'peso corporal';
+function hasLoad(w){
+  const s=String(w??'').trim();
+  if(!s||/corporal/.test(norm(s)))return false;
+  const nums=s.match(/\d+(?:[.,]\d+)?/g);
+  return !!nums&&nums.some(n=>parseFloat(n.replace(',','.'))>0);
+}
+const kg=w=>hasLoad(w)?esc(w)+' kg':'peso corporal';
 function go(name,rid){view={name,rid:rid??view.rid};closeModal();render();window.scrollTo(0,0)}
 function nav(){const b=(n,l)=>`<button class="${view.name===n?'on':''}" onclick="go('${n}')">${l}</button>`;
   return `<div class="nav">${S.active?`<button class="pri" onclick="go('workout')">▶ entreno</button>`:''}${b('home','rutinas')}${b('history','historial')}</div>`}
@@ -445,8 +451,8 @@ function startWorkout(rid){
   if(!wu.length)primeCur();
   save();wakeOn();go('workout');
 }
-function primeCur(){const A=S.active,e=A.ex[A.i];const last=A.log[A.i].sets.at(-1);
-  A.cur={reps:last?last.reps:(e.mode==='time'?e.secs:(parseInt(e.reps)||'')),kg:last?last.kg:e.weight}}
+function primeCur(){const A=S.active,e=A.ex[A.i];const last=(A.log[A.i].sets||[]).filter(s=>!s.skip).at(-1);
+  A.cur={reps:last?last.reps:(e.mode==='time'?e.secs:(parseInt(e.reps)||'')),kg:hasLoad(e.weight)?((last&&last.kg)?last.kg:e.weight):''}}
 function cancelWorkout(){if(!confirm('¿descartar el entreno en curso? no se guarda.'))return;S.active=null;save();wakeOff();go('home')}
 function nextWarm(){
   const A=S.active;if(!A)return;
@@ -500,7 +506,7 @@ function vWorkout(){
     const t=e.mode==='time';
     h+=`<div class="card" style="margin-top:14px">
     <label>${t?'segundos hechos':'reps hechas'}</label><div class="stepper"><button onclick="adj('reps',-1)">−</button><input id="c_reps" inputmode="numeric" value="${esc(A.cur.reps)}" onchange="S.active.cur.reps=this.value;save()"><button onclick="adj('reps',1)">+</button></div>
-    <label>kg</label><div class="stepper"><button onclick="adj('kg',-1)">−</button><input id="c_kg" inputmode="decimal" value="${esc(A.cur.kg)}" placeholder="corporal" onchange="S.active.cur.kg=this.value;save()"><button onclick="adj('kg',1)">+</button></div>
+    ${hasLoad(e.weight)?`<label>kg</label><div class="stepper"><button onclick="adj('kg',-1)">−</button><input id="c_kg" inputmode="decimal" value="${esc(A.cur.kg)}" onchange="S.active.cur.kg=this.value;save()"><button onclick="adj('kg',1)">+</button></div>`:''}
     </div>
     ${t?`<button class="big pri" onclick="startWork()">▶ arrancar ${e.secs} s</button><div style="height:10px"></div>`:''}
     <button class="big ${t?'':'ok'}" data-set-done onclick="setDone()">✓ serie hecha</button>
@@ -509,7 +515,7 @@ function vWorkout(){
   const logged=A.log[A.i].sets||[];
   const done=logged.filter(s=>!s.skip);
   const skipped=logged.length-done.length;
-  if(done.length)h+=`<h2>series hechas</h2><div class="card">${done.map((s,k)=>`<div>serie ${k+1}: ${esc(s.reps)} ${e.mode==='time'?'s':'reps'} · ${s.kg?esc(s.kg)+' kg':'corporal'}</div>`).join('')}</div>`;
+  if(done.length)h+=`<h2>series hechas</h2><div class="card">${done.map((s,k)=>`<div>serie ${k+1}: ${esc(s.reps)} ${e.mode==='time'?'s':'reps'}${s.kg?' · '+esc(s.kg)+' kg':''}</div>`).join('')}</div>`;
   if(skipped)h+=`<p class="mut">${skipped} ${skipped===1?'serie salteada':'series salteadas'}</p>`;
   h+=`<div class="navex"><button data-prev onclick="prevEx()">← ejercicio anterior</button><button data-next onclick="skipEx()">ejercicio siguiente →</button></div>
   <button class="big" style="margin-top:10px" onclick="finishWorkout()">terminar entreno</button>`;
@@ -569,7 +575,9 @@ function setDone(fromWork){
   if(!fromWork)readCur();unlockAudio();const A=S.active;if(!A||A.phase==='done')return;
   const e=A.ex[A.i];
   if(!A.cur)primeCur();
-  A.log[A.i].sets.push({reps:A.cur.reps===''?(e.reps||''):A.cur.reps,kg:A.cur.kg||''});
+  const row={reps:A.cur.reps===''?(e.mode==='time'?(e.secs||''):(e.reps||'')):A.cur.reps};
+  if(hasLoad(e.weight))row.kg=A.cur.kg||e.weight||'';
+  A.log[A.i].sets.push(row);
   if(A.circuit){
     const nxt=findCircuit(A.i,A.round||0);
     if(!nxt){finishWorkout(true);return}
@@ -643,7 +651,7 @@ function exerciseDone(){
     const msg=remain===1?'¿dar por hecho este ejercicio? queda 1 serie, la marco salteada.':'¿dar por hecho este ejercicio? quedan '+remain+' series, las marco salteadas.';
     if(!confirm(msg))return;
   }
-  for(let k=0;k<remain;k++)A.log[A.i].sets.push({reps:'',kg:'',skip:true});
+  for(let k=0;k<remain;k++)A.log[A.i].sets.push({reps:'',skip:true});
   A.phase='ready';A.end=0;
   if(A.circuit){
     if(!findCircuit(A.i,A.round||0)){finishWorkout(true);return}
@@ -655,7 +663,7 @@ function exerciseDone(){
   placeOn(A.i+1);save();render();
 }
 function loggedExercises(log){
-  return (log||[]).map(l=>({name:l.name,sets:(l.sets||[]).filter(s=>!s.skip).map(s=>({reps:s.reps,kg:s.kg||''}))})).filter(l=>l.sets.length);
+  return (log||[]).map(l=>({name:l.name,sets:(l.sets||[]).filter(s=>!s.skip).map(s=>{const row={reps:s.reps};if(s.kg)row.kg=s.kg;return row})})).filter(l=>l.sets.length);
 }
 function finishWorkout(auto){
   const A=S.active;if(!A||A.phase==='done')return;

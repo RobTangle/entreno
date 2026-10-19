@@ -454,6 +454,83 @@ async function circuitMode(browser) {
   await context.close();
 }
 
+async function bodyweightFlow(browser) {
+  const context = await browser.newContext({ serviceWorkers: 'allow' });
+  const page = await context.newPage();
+  const logs = track(page);
+  const seed = {
+    schema: 2,
+    equipment: 'piso',
+    active: null,
+    history: [{
+      id: 'old',
+      date: '2026-04-01T12:00:00.000Z',
+      routine: 'anterior',
+      minutes: 20,
+      exercises: [
+        { name: 'sentadilla goblet', sets: [{ reps: '10', kg: '14' }] },
+        { name: 'flexiones de brazos', sets: [{ reps: '8' }] },
+        { name: 'plancha', sets: [{ reps: '35', kg: '' }] },
+      ],
+    }],
+    routines: [{
+      id: 'bw',
+      name: 'corporal',
+      circuit: false,
+      warmup: [],
+      exercises: [
+        { id: 'sq', name: 'sentadilla goblet', sets: 1, mode: 'reps', reps: '10', secs: 0, weight: '14', rest: 0, note: '' },
+        { id: 'pu', name: 'flexiones de brazos', sets: 1, mode: 'reps', reps: 'máx', secs: 0, weight: '', rest: 0, note: '' },
+        { id: 'pl', name: 'plancha', sets: 1, mode: 'time', reps: '', secs: 35, weight: '', rest: 0, note: '' },
+        { id: 'db', name: 'dead bug', sets: 1, mode: 'reps', reps: '10', secs: 0, weight: '', rest: 0, note: 'por lado' },
+        { id: 'ot', name: 'otro sin carga', sets: 1, mode: 'reps', reps: '12', secs: 0, weight: '0', rest: 0, note: '' },
+      ],
+    }],
+  };
+  await page.addInitScript((payload) => {
+    if (!localStorage.getItem('entreno.v1')) localStorage.setItem('entreno.v1', JSON.stringify(payload));
+  }, seed);
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.getByRole('button', { name: 'historial' }).click();
+  const oldText = await page.locator('#app').innerText();
+  assert(oldText.includes('10×14kg'), 'old loaded sets still show kg');
+  assert(/flexiones de brazos/.test(oldText) && /(?:^|\s)8(?:\s|$)/.test(oldText), 'old bodyweight reps stay readable');
+  assert(/plancha/.test(oldText) && oldText.includes('35'), 'old plancha seconds stay readable');
+  await page.getByRole('button', { name: 'rutinas' }).click();
+  await page.getByRole('button', { name: /empezar/ }).click();
+  await page.locator('#c_kg').waitFor();
+  assert(/sentadilla goblet/i.test(await page.locator('.exname').innerText()), 'loaded exercise comes first');
+  await page.locator('[data-set-done]').click();
+  await page.locator('.exname', { hasText: 'flexiones' }).waitFor();
+  assert(await page.locator('#c_kg').count() === 0, 'flexiones hide the kg input');
+  await page.locator('#c_reps').fill('8');
+  await page.locator('[data-set-done]').click();
+  await page.locator('.exname', { hasText: 'plancha' }).waitFor();
+  assert(await page.locator('#c_kg').count() === 0, 'plancha hides the kg input');
+  assert(/segundos/i.test(await page.locator('#app').innerText()), 'plancha asks for seconds');
+  await page.locator('[data-set-done]').click();
+  await page.locator('.exname', { hasText: 'dead bug' }).waitFor();
+  assert(await page.locator('#c_kg').count() === 0, 'dead bug hides the kg input');
+  await page.locator('[data-set-done]').click();
+  await page.locator('.exname', { hasText: 'otro sin carga' }).waitFor();
+  assert(await page.locator('#c_kg').count() === 0, 'any exercise without load hides kg');
+  await page.locator('[data-set-done]').click();
+  await page.getByText(/bien ahí/i).waitFor();
+  const state = await readState(page);
+  const saved = state.history.find((h) => h.routine === 'corporal');
+  const byName = Object.fromEntries(saved.exercises.map((e) => [e.name, e.sets[0]]));
+  assert(byName['sentadilla goblet'].kg === '14', 'loaded exercise still logs kg');
+  assert(byName['flexiones de brazos'].reps === '8' && !byName['flexiones de brazos'].kg, 'flexiones log reps only');
+  assert(String(byName.plancha.reps) === '35' && !byName.plancha.kg, 'plancha logs seconds only');
+  assert(String(byName['dead bug'].reps) === '10' && !byName['dead bug'].kg, 'dead bug logs reps only');
+  assert(String(byName['otro sin carga'].reps) === '12' && !byName['otro sin carga'].kg, 'zero load logs reps only');
+  assert(state.history.some((h) => h.id === 'old' && h.exercises[0].sets[0].kg === '14'), 'migration does not rewrite old history');
+  const sw = await (await fetch(`http://127.0.0.1:${PORT}/sw.js`)).text();
+  assert(sw.includes('entreno-v3'), 'service worker cache was bumped');
+  assert(logs.length === 0, 'bodyweight flow has no console errors: ' + logs.join(' | '));
+  await context.close();
+}
+
 const server = await startServer();
 const browser = await chromium.launch({
   channel: 'chrome',
@@ -466,6 +543,7 @@ try {
   await fuerzaBFlow(browser);
   await straightMode(browser);
   await circuitMode(browser);
+  await bodyweightFlow(browser);
 } finally {
   await browser.close();
   server.kill();

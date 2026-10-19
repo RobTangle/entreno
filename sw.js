@@ -1,7 +1,7 @@
 'use strict';
 /* network-first for the app shell so a publish reaches installed phones.
    images are cached for offline use. */
-const CACHE = 'entreno-v2';
+const CACHE = 'entreno-v3';
 const SHELL = ['index.html', './'];
 const IMAGES = [
   'img/01-sentadilla-goblet_75b3.png',
