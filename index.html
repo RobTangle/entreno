@@ -64,6 +64,8 @@ ul.cues{margin:8px 0 0;padding-left:18px}ul.cues li{margin:6px 0}
 .zoom img{max-width:100%;max-height:100%;object-fit:contain}
 a.yt{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:14px;background:var(--card2);color:var(--tx);text-decoration:none;margin-top:14px}
 details.wu{margin-top:10px}details.wu summary{cursor:pointer;color:var(--mut)}
+.meal b{display:block;color:var(--acc);font-size:14px;margin-top:8px}
+button.comida{margin:0 0 12px}
 </style>
 </head>
 <body>
@@ -251,6 +253,8 @@ save();
 let view={name:S.active?'workout':'home',rid:null};
 let tick=null,wake=null,actx=null;
 let draft=null,draftWu=null;
+let menuState={status:'idle',key:'',data:null,week:false,inflight:''};
+let menuReq=0;
 
 /* ---------- audio / vibra / wake ---------- */
 function unlockAudio(){try{if(!actx){const A=window.AudioContext||window.webkitAudioContext;if(A)actx=new A()}if(actx&&actx.state==='suspended')actx.resume()}catch(_){}}
@@ -313,6 +317,7 @@ function zoomImg(src){
 /* ---------- home ---------- */
 function vHome(){
   let h=`<div class="top"><h1>rutinas</h1></div>
+  <button class="big comida" data-comida onclick="go('comida')">comida de hoy</button>
   <div class="card" data-primer><b>antes de empezar</b><ul class="cues">
     <li>hacé la entrada en calor de la rutina, unos 5 minutos, antes de la primera serie.</li>
     <li>dejá 1 o 2 repeticiones en reserva: la última tiene que salir con buena forma.</li>
@@ -687,6 +692,94 @@ function vHistory(){
   return h;
 }
 function delHist(id){if(!confirm('¿borrar este entreno del historial?'))return;S.history=S.history.filter(w=>w.id!==id);save();render()}
+
+/* ---------- comida ---------- */
+const MEALS=['desayuno','almuerzo','merienda','cena'];
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function weekDates(today){
+  const start=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+  const dow=start.getDay();
+  start.setDate(start.getDate()+(dow===0?-6:1-dow));
+  const out=[];
+  for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);out.push(d)}
+  return out;
+}
+function dayLabel(d){return d.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'short'})}
+function expandMeal(text,plantillas){
+  const raw=String(text??'').trim();
+  if(!raw||!plantillas)return raw;
+  const keys=Object.keys(plantillas).sort((a,b)=>norm(b).length-norm(a).length);
+  const folded=norm(raw);
+  for(const key of keys){
+    const nkey=norm(key);
+    if(!nkey)continue;
+    if(folded===nkey)return String(plantillas[key]);
+    if(!folded.startsWith(nkey+' '))continue;
+    const head=raw.slice(0,key.length);
+    if(norm(head)!==nkey)continue;
+    const rest=raw.slice(key.length).trim();
+    return String(plantillas[key])+(rest?', '+rest:'');
+  }
+  return raw;
+}
+function mealHtml(day,plantillas){
+  return MEALS.map(m=>{
+    const val=day&&day[m];
+    if(val==null||!String(val).trim())return '';
+    return `<div class="meal"><b>${esc(m)}</b><div>${esc(expandMeal(val,plantillas))}</div></div>`;
+  }).join('');
+}
+function loadMenu(key){
+  if(menuState.inflight===key)return;
+  menuState.inflight=key;
+  menuState.key=key;
+  menuState.status='loading';
+  const req=++menuReq;
+  fetch('menu.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('menu');return r.json()}).then(data=>{
+    if(req!==menuReq)return;
+    menuState.status='ready';
+    menuState.data=data&&typeof data==='object'?data:{};
+    menuState.inflight='';
+    if(view.name==='comida')render();
+  }).catch(()=>{
+    if(req!==menuReq)return;
+    menuState.status='error';
+    menuState.data=null;
+    menuState.inflight='';
+    if(view.name==='comida')render();
+  });
+}
+function retryMenu(){menuState.status='idle';menuState.inflight='';menuState.key='';render()}
+function toggleSemana(){menuState.week=!menuState.week;render()}
+function vComida(){
+  const today=new Date();
+  const key=ymd(today);
+  if(menuState.inflight!==key&&(menuState.key!==key||menuState.status==='idle'))loadMenu(key);
+  let body;
+  if(menuState.status==='error'&&menuState.key===key){
+    body=`<div class="empty">no pude cargar el menú.</div><button class="big" onclick="retryMenu()">reintentar</button>`;
+  }else if(menuState.status!=='ready'||menuState.key!==key){
+    body=`<div class="empty">cargando el menú…</div>`;
+  }else{
+    const data=menuState.data||{};
+    const dias=data.dias||{};
+    const plantillas=data.plantillas||{};
+    const day=dias[key];
+    body=`<div class="card" data-hoy data-dia="${key}"><b>${esc(dayLabel(today))}</b>${day?mealHtml(day,plantillas):'<p class="mut">no hay menú cargado para hoy</p>'}</div>`;
+    body+=`<button class="big" data-semana-toggle onclick="toggleSemana()">${menuState.week?'ocultar el resto de la semana':'ver el resto de la semana'}</button>`;
+    if(menuState.week){
+      body+='<div data-semana>';
+      weekDates(today).forEach(d=>{
+        const k=ymd(d);
+        if(k===key)return;
+        const dd=dias[k];
+        body+=`<div class="card" data-dia="${k}"><b>${esc(dayLabel(d))}</b>${dd?mealHtml(dd,plantillas):'<p class="mut">sin menú</p>'}</div>`;
+      });
+      body+='</div>';
+    }
+  }
+  return `<div class="top"><button class="ico" onclick="go('home')">←</button><h1>comida de hoy</h1></div>${body}`;
+}
 function csvCell(v){v=String(v??'');return /[",\n;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function buildCSV(){const rows=[['fecha','hora','rutina','minutos_total','ejercicio','serie','reps_o_seg','kg']];
   S.history.slice().reverse().forEach(w=>{const d=new Date(w.date);const f=d.toLocaleDateString('sv-SE'),t=d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
@@ -701,7 +794,7 @@ function dl(blob,name){const a=document.createElement('a');a.href=URL.createObje
 
 /* ---------- render loop ---------- */
 function render(){
-  const v={home:vHome,edit:vEdit,workout:vWorkout,history:vHistory}[view.name]||vHome;
+  const v={home:vHome,edit:vEdit,workout:vWorkout,history:vHistory,comida:vComida}[view.name]||vHome;
   $('#app').innerHTML=v()+nav();
   clearInterval(tick);tick=null;
   const A=S.active;

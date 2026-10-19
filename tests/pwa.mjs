@@ -526,8 +526,108 @@ async function bodyweightFlow(browser) {
   assert(String(byName['otro sin carga'].reps) === '12' && !byName['otro sin carga'].kg, 'zero load logs reps only');
   assert(state.history.some((h) => h.id === 'old' && h.exercises[0].sets[0].kg === '14'), 'migration does not rewrite old history');
   const sw = await (await fetch(`http://127.0.0.1:${PORT}/sw.js`)).text();
-  assert(sw.includes('entreno-v3'), 'service worker cache was bumped');
+  assert(sw.includes('entreno-v4'), 'service worker cache was bumped');
   assert(logs.length === 0, 'bodyweight flow has no console errors: ' + logs.join(' | '));
+  await context.close();
+}
+
+async function openComida(page) {
+  await page.locator('[data-comida]').click();
+  await page.locator('[data-hoy]').waitFor();
+  return page.locator('[data-hoy]').innerText();
+}
+
+async function comidaFlow(browser) {
+  const context = await browser.newContext({ serviceWorkers: 'allow' });
+  const page = await context.newPage();
+  const logs = track(page);
+  await page.clock.install({ time: new Date(2026, 9, 19, 12, 0, 0) });
+  await page.goto(URL, { waitUntil: 'load' });
+
+  const btn = page.locator('[data-comida]');
+  await btn.waitFor();
+  const box = await btn.boundingBox();
+  const vp = page.viewportSize();
+  assert(box && box.y >= 0 && box.y < (vp ? vp.height : 700), 'comida de hoy is reachable on the home screen');
+  const monday = await openComida(page);
+  assert(/desayuno a: huevos/i.test(monday), 'monday expands desayuno A');
+  assert(/pechuga a la plancha/i.test(monday) && /150 g arroz cocido/i.test(monday), 'monday lunch');
+  assert(/yogur \+ fruta/i.test(monday), 'monday snack');
+  assert(/tortilla de 3 huevos/i.test(monday), 'monday dinner');
+  assert((await page.locator('[data-hoy]').getAttribute('data-dia')) === '2026-10-19', 'monday uses the device date');
+
+  await page.locator('[data-semana-toggle]').click();
+  const week = page.locator('[data-semana]');
+  await week.waitFor();
+  const days = await week.locator('[data-dia]').evaluateAll((els) => els.map((el) => el.getAttribute('data-dia')));
+  assert(days.join(',') === '2026-10-20,2026-10-21,2026-10-22,2026-10-23,2026-10-24,2026-10-25', 'week lists the other days, monday to sunday');
+  const weekText = await week.innerText();
+  assert(/desayuno b: yogur con avena/i.test(weekText), 'week expands desayuno B');
+  assert(/jiu jitsu/i.test(weekText) && /banana extra/i.test(weekText), 'week shows saturday extras');
+  assert(/bife de nalga/i.test(weekText), 'week shows wednesday');
+  assert(!/pechuga a la plancha/i.test(weekText), 'today is not repeated in the rest of the week');
+
+  await page.clock.setFixedTime(new Date(2026, 9, 24, 10, 0, 0));
+  await page.reload({ waitUntil: 'load' });
+  const saturday = await openComida(page);
+  assert(/desayuno b: yogur con avena, a las 9:30 con banana extra \(antes del jiu jitsu\)/i.test(saturday), 'saturday expands des B and keeps the note');
+  assert(/200 g arroz/i.test(saturday), 'saturday lunch');
+  assert(/revuelto de 3 huevos/i.test(saturday), 'saturday dinner');
+
+  await page.clock.setFixedTime(new Date(2026, 9, 20, 8, 0, 0));
+  await page.reload({ waitUntil: 'load' });
+  const tuesday = await openComida(page);
+  assert(/desayuno b: yogur con avena/i.test(tuesday), 'tuesday is desayuno B');
+  assert(/zapallitos/i.test(tuesday), 'tuesday lunch');
+  assert(!/pechuga a la plancha/i.test(tuesday), 'tuesday is not monday');
+
+  await page.clock.setFixedTime(new Date(2026, 9, 26, 8, 0, 0));
+  await page.reload({ waitUntil: 'load' });
+  await page.locator('[data-comida]').click();
+  await page.getByText(/no hay menú cargado para hoy/i).waitFor();
+  await page.locator('[data-semana-toggle]').click();
+  await page.locator('[data-semana]').waitFor();
+  assert(await page.locator('[data-semana] [data-dia]').count() === 6, 'a day without a menu still opens the week');
+
+  await page.getByRole('button', { name: '←', exact: true }).click();
+  await page.getByText('sentadilla, remo y swing', { exact: true }).waitFor();
+
+  await page.clock.setFixedTime(new Date(2026, 9, 19, 12, 0, 0));
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.waitForFunction(() => navigator.serviceWorker.ready.then(() => true));
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  const live = await openComida(page);
+  assert(/desayuno a: huevos/i.test(live), 'menu loads through the service worker');
+  await page.evaluate(async () => {
+    const keys = await caches.keys();
+    for (const key of keys) {
+      const cache = await caches.open(key);
+      for (const req of await cache.keys()) {
+        if (req.url.includes('menu.json')) {
+          await cache.put(req, new Response(JSON.stringify({
+            plantillas: {},
+            dias: { '2026-10-19': { desayuno: 'SENTINEL CACHE', almuerzo: 'x', merienda: 'x', cena: 'x' } },
+          }), { headers: { 'Content-Type': 'application/json' } }));
+        }
+      }
+    }
+  });
+  await context.setOffline(true);
+  await page.reload({ waitUntil: 'load' });
+  await page.locator('[data-comida]').click();
+  await page.locator('[data-hoy]').waitFor();
+  const offlineMenu = await page.locator('[data-hoy]').innerText();
+  assert(/sentinel cache/i.test(offlineMenu), 'offline menu.json falls back to the cached json');
+  assert(!/rutinas/i.test(offlineMenu), 'offline menu.json does not fall back to the app shell');
+  await context.setOffline(false);
+  await page.reload({ waitUntil: 'load' });
+  const fresh = await openComida(page);
+  assert(/desayuno a: huevos/i.test(fresh) && !/sentinel/i.test(fresh), 'online menu.json is network-first over a stale cache');
+
+  const sw = await (await fetch(`http://127.0.0.1:${PORT}/sw.js`)).text();
+  assert(sw.includes('entreno-v4') && /menu\.json/.test(sw) && /networkFirstExact/.test(sw), 'menu.json uses its own network-first cache');
+  assert(logs.length === 0, 'comida flow has no console errors: ' + logs.join(' | '));
   await context.close();
 }
 
@@ -544,6 +644,7 @@ try {
   await straightMode(browser);
   await circuitMode(browser);
   await bodyweightFlow(browser);
+  await comidaFlow(browser);
 } finally {
   await browser.close();
   server.kill();

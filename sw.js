@@ -1,8 +1,8 @@
 'use strict';
-/* network-first for the app shell so a publish reaches installed phones.
-   images are cached for offline use. */
-const CACHE = 'entreno-v3';
-const SHELL = ['index.html', './'];
+/* network-first for the app shell and menu.json so a publish and a new
+   week of meals reach installed phones. images are cached for offline use. */
+const CACHE = 'entreno-v4';
+const SHELL = ['index.html', './', 'menu.json'];
 const IMAGES = [
   'img/01-sentadilla-goblet_75b3.png',
   'img/02-remo-a-una-mano_74da.png',
@@ -60,6 +60,23 @@ async function networkFirst(req) {
   }
 }
 
+async function networkFirstExact(req) {
+  const cache = await caches.open(CACHE);
+  if (self.navigator && self.navigator.onLine === false) {
+    const hit = await cache.match(req);
+    if (hit) return hit;
+  }
+  try {
+    const res = await fetch(req);
+    if (res && res.ok) await cache.put(req, res.clone());
+    return res;
+  } catch (err) {
+    const hit = await cache.match(req);
+    if (hit) return hit;
+    throw err;
+  }
+}
+
 async function cacheFirst(req) {
   const cache = await caches.open(CACHE);
   const hit = await cache.match(req);
@@ -76,7 +93,12 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   const path = url.pathname;
   const isImage = path.includes('/img/');
+  const isMenu = path.endsWith('/menu.json');
   const isDoc = req.mode === 'navigate' || path.endsWith('/index.html') || /\/$/.test(path);
+  if (isMenu) {
+    event.respondWith(networkFirstExact(req));
+    return;
+  }
   if (isDoc) {
     event.respondWith(networkFirst(req));
     return;

@@ -1,0 +1,50 @@
+{
+  "plantillas": {
+    "des A": "desayuno A: huevos",
+    "des B": "desayuno B: yogur con avena"
+  },
+  "dias": {
+    "2026-10-19": {
+      "desayuno": "des A",
+      "almuerzo": "200 g pechuga a la plancha + 150 g arroz cocido + ensalada",
+      "merienda": "yogur + fruta",
+      "cena": "tortilla de 3 huevos + 2 claras con espinaca y queso + ensalada"
+    },
+    "2026-10-20": {
+      "desayuno": "des B",
+      "almuerzo": "200 g carne picada especial salteada con zapallitos y cebolla + 1 papa",
+      "merienda": "2 huevos duros + manzana",
+      "cena": "200 g muslo de pollo sin piel al horno con calabaza"
+    },
+    "2026-10-21": {
+      "desayuno": "des A",
+      "almuerzo": "200 g bife de nalga o peceto + puré de calabaza + ensalada",
+      "merienda": "queso magro + 2 tostadas",
+      "cena": "wok de 180 g de pollo con verduras y poco arroz"
+    },
+    "2026-10-22": {
+      "desayuno": "des B",
+      "almuerzo": "milanesas de pollo al horno (200 g) + ensalada",
+      "merienda": "yogur proteico",
+      "cena": "2 hamburguesas caseras de carne magra (sin pan o con 1) + ensalada"
+    },
+    "2026-10-23": {
+      "desayuno": "des A",
+      "almuerzo": "200 g pollo + batata al horno",
+      "merienda": "2 huevos duros + fruta",
+      "cena": "libre (arrancar por la proteína)"
+    },
+    "2026-10-24": {
+      "desayuno": "des B a las 9:30 con banana extra (antes del jiu jitsu)",
+      "almuerzo": "14:00 grande: 200 g carne magra + 200 g arroz + ensalada",
+      "merienda": "yogur",
+      "cena": "revuelto de 3 huevos con jamón y verduras"
+    },
+    "2026-10-25": {
+      "desayuno": "des A",
+      "almuerzo": "parrilla: pollo o lomo 200 g + ensaladas (si hay chorizo, uno solo)",
+      "merienda": "fruta + yogur",
+      "cena": "ensalada completa con pollo y huevo duro"
+    }
+  }
+}
