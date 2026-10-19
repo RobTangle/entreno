@@ -28,8 +28,9 @@ button:active{transform:scale(.97)}
 .big{width:100%;min-height:68px;font-size:22px}
 .row{display:flex;gap:10px}.row>*{flex:1}
 .ico{min-width:52px;padding:0;font-size:22px;flex:0 0 52px}
-.ex{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:12px;padding:8px 8px 8px 12px;margin:8px 0}
+.ex{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:12px;padding:8px 8px 8px 12px;margin:8px 0;flex-wrap:wrap}
 .ex .t{flex:1}.ex button{min-height:44px;min-width:44px;padding:0;flex:0 0 44px}
+.ex .howto{flex:1 1 100%;min-width:0;padding:0 12px}
 label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
 input,textarea,select{width:100%;font:inherit;font-size:18px;background:var(--card2);color:var(--tx);border:1px solid #333a47;border-radius:12px;padding:12px;min-height:52px}
 .seg{display:flex;gap:6px}.seg button{flex:1}.seg .on{background:var(--acc);color:#111;font-weight:700}
@@ -47,6 +48,16 @@ input,textarea,select{width:100%;font:inherit;font-size:18px;background:var(--ca
 .flash{animation:fl .5s 3}@keyframes fl{50%{background:#3a2410}}
 table{width:100%;border-collapse:collapse;font-size:15px}td{padding:4px 2px;border-bottom:1px solid #2a2f3a}
 .empty{text-align:center;color:var(--mut);padding:30px 0}
+.howto{min-height:40px;padding:0 12px;font-size:14px}
+.exline{display:flex;align-items:center;gap:8px;margin-top:8px}
+.exline span,.exline .t{flex:1}
+ul.cues{margin:8px 0 0;padding-left:18px}ul.cues li{margin:6px 0}
+.cue{font-size:17px;margin:6px 0 10px}
+.guideimg{width:100%;border-radius:12px;display:block;cursor:zoom-in;background:#000}
+.zoom{position:fixed;inset:0;background:#000e;z-index:30;display:flex;align-items:center;justify-content:center;padding:10px}
+.zoom img{max-width:100%;max-height:100%;object-fit:contain}
+a.yt{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:14px;background:var(--card2);color:var(--tx);text-decoration:none;margin-top:14px}
+details.wu{margin-top:10px}details.wu summary{cursor:pointer;color:var(--mut)}
 </style>
 </head>
 <body>
@@ -55,29 +66,185 @@ table{width:100%;border-collapse:collapse;font-size:15px}td{padding:4px 2px;bord
 <script>
 'use strict';
 const KEY='entreno.v1';
+const SCHEMA=2;
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=s=>document.querySelector(s);
+const norm=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
 
-function seed(){
-  const e=(name,sets,reps,weight,rest,note,secs)=>({id:uid(),name,sets,mode:secs?'time':'reps',reps:reps||'',secs:secs||0,weight,rest,note:note||''});
-  return {routines:[{id:uid(),name:'fuerza A (kettlebells)',exercises:[
-    e('sentadilla goblet',4,'12','14',75,''),
-    e('remo a una mano',4,'10','14',60,'por brazo'),
-    e('press de hombros a una mano',3,'10','8',60,'por brazo'),
-    e('swing',4,'15','14',75,''),
-    e('flexiones de brazos',3,'máx','',60,'dejando 2 en reserva'),
-    e('plancha',3,'','',45,'',35)
-  ]}],history:[],equipment:'kettlebells 6, 8, 8 y 14 kg · banda elástica · piso de goma',active:null};
+const LIBRARY=[
+  {name:'sentadilla goblet',img:'img/01-sentadilla-goblet_75b3.png',credit:'kettlebell kings',
+    desc:'sostené la pesa pegada al pecho, con los codos hacia abajo. bajá en cuclillas hasta donde puedas con el torso bastante vertical y subí empujando el piso con todo el pie.',
+    rinde:['bajá en 2 o 3 segundos y subí sin rebote.','buscá un rango profundo que puedas controlar, cerca del muslo paralelo o un poco más.','inhalá al bajar y exhalá al empujar.','si las reps salen limpias y te sobran, subí un poco el peso. dejá 1 o 2 en reserva.'],
+    seguro:['las rodillas siguen la punta de los pies y no se cierran hacia adentro.','los talones quedan apoyados. si se levantan, achicá el rango.','espalda neutra, pecho abierto, sin redondear la zona lumbar.','pará si aparece un dolor punzante.']},
+  {name:'remo a una mano',img:'img/02-remo-a-una-mano_74da.png',credit:'kettlebell kings',
+    desc:'apoyá una mano y la rodilla de ese mismo lado. con la espalda casi paralela al piso, llevá la pesa hacia la cadera, codo cerca del torso, y bajá el brazo estirado.',
+    rinde:['subí en un segundo y bajá en dos, sin tironear.','rango completo: brazo estirado abajo y codo hacia atrás arriba, sin encoger el hombro.','exhalá al subir la pesa.','pensá en el omóplato, no en el bíceps. si está fácil, subí el peso.'],
+    seguro:['espalda neutra y quieta, sin rotar el torso para ayudar.','el codo viaja cerca de la costilla, no abierto de costado.','cuello largo, mirada al piso un poco adelante.','pará si hay un dolor punzante en el hombro o la lumbar.']},
+  {name:'press de hombros a una mano',img:'img/03-press-de-hombros_1a05.png',credit:'kettlebell kings',
+    desc:'de pie, llevá la pesa al hombro con el codo abajo. empujá arriba hasta estirar el brazo y bajá con control hasta el hombro.',
+    rinde:['subí decidido y bajá en unos 2 segundos.','rango completo, sin trabar el codo de golpe arriba.','exhalá al empujar.','glúteos y abdomen firmes. si las últimas salen limpias, subí el peso.'],
+    seguro:['costillas abajo: no arquees la lumbar para terminar la repetición.','muñeca firme, la pesa queda sobre el antebrazo.','pies quietos, rodillas un poco blandas.','pará si pinza el hombro o duele la zona lumbar.']},
+  {name:'swing',img:'img/04-swing_5b65.png',credit:'onnit',
+    desc:'es una bisagra de cadera, no una sentadilla. la pesa pasa entre las piernas y sube hasta el pecho por el impulso de la cadera. los brazos solo la acompañan.',
+    rinde:['el ritmo lo marca la cadera: un empuje corto y una bajada controlada.','la pesa llega más o menos a la altura del pecho, sin levantarla con los brazos.','exhalá fuerte en el empuje de cadera.','si se desarma la posición, bajá el peso antes de sumar repeticiones.'],
+    seguro:['bisagra: rodillas apenas flexionadas, cola atrás. no bajes en cuclillas.','espalda neutra en todo el recorrido, sobre todo abajo.','los brazos van sueltos. no tires de la pesa con los hombros.','pará si sentís un tirón en la lumbar.']},
+  {name:'flexiones',img:'img/05-flexiones_9adb.png',credit:'muscle & fitness',
+    desc:'cuerpo en una línea de la cabeza a los talones, manos un poco más anchas que los hombros. bajá el pecho cerca del piso y empujá hasta estirar los brazos.',
+    rinde:['bajá en 2 segundos y subí sin rebotar.','llegá cerca del piso en cada rep, sin acortar el rango.','inhalá al bajar y exhalá al empujar.','si no mantenés la línea, apoyá las rodillas. sumá reps antes que velocidad.'],
+    seguro:['abdomen y glúteos firmes. la cadera no se cae ni sube.','codos a unos 45 grados del torso, no abiertos en cruz.','cabeza alineada con la espalda.','pará si duele el hombro o la muñeca.']},
+  {name:'plancha',img:'img/06-plancha_2259.png',credit:'tu entrenamiento',
+    desc:'antebrazos bajo los hombros y cuerpo en una línea. sostené el tiempo con el abdomen activo, sin dejar caer ni levantar la cadera.',
+    rinde:['respirá parejo durante todo el tiempo. no aguantes el aire.','apretá abdomen y glúteos, como si acercaras las costillas a la pelvis.','si llegás fácil y prolijo, sumá de a 5 segundos.','cortá cuando se desarma la línea, aunque quede tiempo.'],
+    seguro:['no hiperextiendas la lumbar: ni la cola alta ni la panza colgando.','mirada al piso, cuello neutro.','hombros lejos de las orejas.','pará si aparece dolor en la zona lumbar.']},
+  {name:'peso muerto rumano',img:'img/07-peso-muerto-rumano_6c0c.png',credit:"men's health",
+    desc:'de pie, con la pesa por delante de los muslos. empujá la cola atrás, rodillas apenas flexionadas, y bajá la pesa pegada a las piernas hasta sentir los isquios. volvé a pararte.',
+    rinde:['bajá en 2 o 3 segundos y subí empujando el piso.','el rango lo marca la tensión del isquio con la espalda neutra. no hace falta llegar al piso.','inhalá al bajar y exhalá al subir.','si la espalda se redondea, achicá el rango o el peso.'],
+    seguro:['espalda neutra todo el tiempo. la pesa va pegada a las piernas.','es una bisagra, no una sentadilla: las rodillas no se van mucho adelante.','no rebotes abajo.','pará si el dolor está en la lumbar y no en el isquio.']},
+  {name:'zancada hacia atrás',img:'img/08-zancada-hacia-atras_ef8c.png',credit:"women's health",
+    desc:'desde parado, das un paso atrás y bajás hasta que la rodilla de atrás se acerca al piso. la de adelante queda sobre el pie. después juntás los pies.',
+    rinde:['bajá en 2 segundos, sin dejarte caer.','torso alto y quieto.','exhalá al volver al centro.','terminá un lado y después el otro. si está fácil, subí el peso.'],
+    seguro:['la rodilla de adelante sigue la punta del pie y no se cierra adentro.','el paso es largo. si es corto, la rodilla se pasa de los dedos.','no te inclines adelante para bajar.','pará si duele la rodilla.']},
+  {name:'press de piso',img:'img/09-press-de-piso_c5c5.png',credit:'onnit',
+    desc:'acostado boca arriba, una pesa en cada mano a la altura del pecho y los codos a unos 45 grados. empujá hasta estirar los brazos y bajá con control.',
+    rinde:['bajá en 2 segundos y empujá sin rebotar en el pecho.','rango completo, sin trabar los codos de golpe.','pies apoyados. exhalá al empujar.','si las repeticiones salen limpias, la próxima subí un poco el peso.'],
+    seguro:['la lumbar queda apoyada o apenas neutra, sin arquearte para sacar la rep.','muñecas firmes, las pesas sobre los antebrazos.','los codos no se abren del todo a los costados.','pará si pinza el hombro.']},
+  {name:'remo con banda',img:'img/10-remo-con-banda_9378.png',credit:'oxygen magazine',
+    desc:'sentado, enganchá la banda en los pies y tirá de los extremos hacia las costillas, juntando los omóplatos. volvé estirando los brazos sin soltar la tensión.',
+    rinde:['un segundo al tirar y dos al volver.','apretá los omóplatos un instante atrás.','exhalá al tirar.','si está fácil, acortá la banda o sumá reps. no uses envión.'],
+    seguro:['el torso queda quieto, sin echarte atrás para ayudar.','hombros bajos, lejos de las orejas.','no encojas el cuello.','pará si duele el hombro.']},
+  {name:'puente de glúteos',img:'img/11-puente-de-gluteos_c67f.png',credit:'sweat',
+    desc:'boca arriba, pies apoyados y la pesa sobre la pelvis. subí la cadera hasta alinear hombros, cadera y rodillas. bajá sin apoyar del todo.',
+    rinde:['pausá un segundo arriba apretando los glúteos.','bajá en 2 segundos.','exhalá al subir.','tiene que sentirse en el glúteo. si está fácil, subí el peso.'],
+    seguro:['no empujes con la lumbar: la extensión la hacen los glúteos.','mentón suave hacia el pecho, cuello relajado.','las rodillas siguen la línea de los pies.','pará si duele la espalda baja.']},
+  {name:'dead bug',img:'img/12-dead-bug_1bbf.png',credit:'kettlebell kings',
+    desc:'boca arriba, brazos al techo y rodillas a 90 grados. extendé un brazo y la pierna de enfrente sin despegar la lumbar, y volvé al centro. alterná.',
+    rinde:['lento: 2 o 3 segundos por lado.','exhalá mientras extendés y mantené el abdomen hacia el piso.','si se arquea la espalda, achicá el rango.','sumá repeticiones solo cuando la lumbar no se despega.'],
+    seguro:['la zona lumbar queda apoyada todo el tiempo.','no aguantes la respiración.','cuello relajado, sin tirar de la cabeza.','pará si aparece dolor lumbar.']}
+];
+
+function findGuide(name){
+  const n=norm(name);
+  if(!n)return null;
+  let best=null,len=0;
+  for(const g of LIBRARY){
+    const k=norm(g.name);
+    if(n.includes(k)&&k.length>len){best=g;len=k.length}
+  }
+  if(best)return best;
+  const loose=LIBRARY.filter(g=>norm(g.name).includes(n)&&n.length>=4);
+  return loose.length===1?loose[0]:null;
 }
-let S;
-try{S=JSON.parse(localStorage.getItem(KEY))}catch(_){S=null}
-if(!S||!Array.isArray(S.routines))S=seed();
+function ytUrl(name){
+  return 'https://www.youtube.com/results?search_query='+encodeURIComponent(name+' kettlebell tecnica');
+}
+
+function makeEx(name,sets,reps,weight,rest,note,secs){
+  return {id:uid(),name,sets,mode:secs?'time':'reps',reps:reps||'',secs:secs||0,weight:weight||'',rest,note:note||''};
+}
+function drill(name,secs,cue,guide){
+  return {id:uid(),name,secs,cue,guide:guide||''};
+}
+function warmupA(){
+  return [
+    drill('jumping jacks o trote en el lugar',60,'un minuto a ritmo cómodo, apoyá blando y no te quedes sin aire.',''),
+    drill('círculos de cadera por lado',40,'10 por lado, círculos amplios y lentos, con el torso quieto.',''),
+    drill('sentadillas sin peso lentas',45,'10 reps lentas, talones apoyados y rodillas hacia los pies.','sentadilla goblet'),
+    drill('bisagras de cadera (good mornings sin peso)',40,'10 good mornings sin peso: cola atrás, espalda neutra, rodillas blandas.','swing'),
+    drill('círculos de brazos + aperturas con banda (pull-aparts)',50,'10 círculos y 10 pull-aparts, omóplatos juntos sin encoger los hombros.','remo a una mano'),
+    drill('flexiones inclinadas o en rodillas',40,'8 reps con el cuerpo en línea. si se desarma, apoyá las rodillas.','flexiones'),
+    drill('swings livianos con el de 8 kg',45,'10 swings con el de 8 kg: es una bisagra y la pesa sube hasta el pecho.','swing')
+  ];
+}
+function warmupB(){
+  return [
+    drill('trote en el lugar',60,'un minuto suave, apoyá blando y mové los brazos.',''),
+    drill('puentes de glúteos sin peso',40,'10 reps sin peso, pausá arriba apretando glúteos y sin arquear la lumbar.','puente de glúteos'),
+    drill('bisagras de cadera sin peso',40,'10 reps, cola atrás y la espalda neutra, como el peso muerto.','peso muerto rumano'),
+    drill('zancadas hacia atrás sin peso por pierna',50,'6 por pierna, paso largo y la rodilla de adelante sigue el pie.','zancada hacia atrás'),
+    drill('pull-aparts con banda',35,'10 reps, tirás la banda al pecho juntando los omóplatos.','remo con banda'),
+    drill('flexiones inclinadas',40,'8 reps con las manos altas y la cadera firme.','flexiones'),
+    drill('dead bugs por lado lentos',50,'5 por lado, bien lentos, sin despegar la lumbar del piso.','dead bug')
+  ];
+}
+function warmupFromExercises(exercises){
+  const names=(exercises||[]).map(e=>norm(e.name));
+  const has=(...ks)=>ks.some(k=>names.some(n=>n.includes(norm(k))));
+  const drills=[drill('trote en el lugar',60,'un minuto suave para subir la temperatura, apoyando blando.','')];
+  if(has('sentadilla'))drills.push(drill('sentadillas sin peso lentas',45,'10 reps lentas, talones apoyados y rodillas hacia los pies.','sentadilla goblet'));
+  if(has('zancada'))drills.push(drill('zancadas hacia atrás sin peso por pierna',50,'6 por pierna, paso largo y la rodilla sigue el pie.','zancada hacia atrás'));
+  if(has('peso muerto','rumano','bisagra','swing'))drills.push(drill('bisagras de cadera sin peso',40,'10 reps, cola atrás y espalda neutra.','peso muerto rumano'));
+  if(has('swing'))drills.push(drill('swings livianos con el de 8 kg',45,'10 swings suaves: bisagra, la pesa hasta el pecho.','swing'));
+  if(has('remo'))drills.push(drill('pull-aparts con banda',35,'10 reps juntando los omóplatos, sin encoger.','remo con banda'));
+  if(has('flexiones','press de piso','press de hombros'))drills.push(drill('flexiones inclinadas',40,'8 reps con las manos altas y el cuerpo en línea.','flexiones'));
+  if(has('puente','gluteo'))drills.push(drill('puentes de glúteos sin peso',40,'10 reps, pausa arriba, sin empujar con la lumbar.','puente de glúteos'));
+  if(has('dead bug'))drills.push(drill('dead bugs por lado lentos',50,'5 por lado, lumbares apoyadas, sin apuro.','dead bug'));
+  return drills;
+}
+function warmupFor(routine){
+  const n=norm(routine.name);
+  if(n===norm('sentadilla, remo y swing'))return warmupA();
+  if(n===norm('peso muerto, zancada y glúteos'))return warmupB();
+  return warmupFromExercises(routine.exercises||[]);
+}
+function routineA(){
+  return {id:uid(),name:'sentadilla, remo y swing',warmup:warmupA(),exercises:[
+    makeEx('sentadilla goblet',4,'12','14',75,''),
+    makeEx('remo a una mano',4,'10','14',60,'por brazo'),
+    makeEx('press de hombros a una mano',3,'10','8',60,'por brazo'),
+    makeEx('swing',4,'15','14',75,''),
+    makeEx('flexiones de brazos',3,'máx','',60,'dejando 2 en reserva'),
+    makeEx('plancha',3,'','',45,'',35)
+  ]};
+}
+function routineB(){
+  return {id:uid(),name:'peso muerto, zancada y glúteos',warmup:warmupB(),exercises:[
+    makeEx('peso muerto rumano',4,'10','14',75,''),
+    makeEx('zancada hacia atrás',3,'8','2×8',60,'por pierna'),
+    makeEx('press de piso',4,'10','2×8',60,''),
+    makeEx('remo con banda',3,'15','',45,''),
+    makeEx('puente de glúteos',3,'15','14',45,''),
+    makeEx('dead bug',3,'10','',45,'por lado')
+  ]};
+}
+function seed(){
+  return {schema:SCHEMA,routines:[routineA(),routineB()],history:[],equipment:'kettlebells 6, 8, 8 y 14 kg · banda elástica · piso de goma',active:null};
+}
+/* schema 2 runs once: rename legacy routines, add B if it was never there,
+   and attach a warm-up. history and exercise edits stay as they are. */
+function migrate(S){
+  if((S.schema||0)>=SCHEMA)return S;
+  let sawB=false;
+  S.routines.forEach(r=>{
+    const n=norm(r.name);
+    if(n==='fuerza a (kettlebells)'||n==='fuerza a')r.name='sentadilla, remo y swing';
+    else if(/^fuerza b\b/.test(n))r.name='peso muerto, zancada y glúteos';
+    if(norm(r.name)===norm('peso muerto, zancada y glúteos'))sawB=true;
+  });
+  if(!sawB)S.routines.push(routineB());
+  S.routines.forEach(r=>{
+    if(!Array.isArray(r.warmup))r.warmup=warmupFor(r);
+  });
+  if(S.active&&S.active.rid){
+    const ar=S.routines.find(r=>r.id===S.active.rid);
+    if(ar)S.active.name=ar.name;
+  }
+  S.schema=SCHEMA;
+  return S;
+}
+function loadState(){
+  let data=null;
+  try{data=JSON.parse(localStorage.getItem(KEY))}catch(_){data=null}
+  if(!data||!Array.isArray(data.routines))return seed();
+  return migrate(data);
+}
+let S=loadState();
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(_){}};
 save();
 
 let view={name:S.active?'workout':'home',rid:null};
 let tick=null,wake=null,actx=null;
+let draft=null,draftWu=null;
 
 /* ---------- audio / vibra / wake ---------- */
 function unlockAudio(){try{if(!actx){const A=window.AudioContext||window.webkitAudioContext;if(A)actx=new A()}if(actx&&actx.state==='suspended')actx.resume()}catch(_){}}
@@ -102,42 +269,90 @@ const kg=w=>w?esc(w)+' kg':'peso corporal';
 function go(name,rid){view={name,rid:rid??view.rid};closeModal();render();window.scrollTo(0,0)}
 function nav(){const b=(n,l)=>`<button class="${view.name===n?'on':''}" onclick="go('${n}')">${l}</button>`;
   return `<div class="nav">${S.active?`<button class="pri" onclick="go('workout')">▶ entreno</button>`:''}${b('home','rutinas')}${b('history','historial')}</div>`}
+function guideBtn(name){
+  const g=findGuide(name);
+  const label=g?g.name:name;
+  return `<button type="button" class="howto" data-guide="${esc(label)}" onclick="openGuide('${encodeURIComponent(name)}')">ⓘ cómo se hace</button>`;
+}
+function openGuide(enc){
+  const raw=decodeURIComponent(enc);
+  const g=findGuide(raw);
+  const title=g?g.name:raw;
+  const img=g?`<img class="guideimg" src="${g.img}" alt="${esc(g.name)}" onclick="zoomImg(this.src)"><p class="mut credit">fuente: ${esc(g.credit)}</p>`:'';
+  const body=g?`<p>${esc(g.desc)}</p><h2>para que rinda</h2><ul class="cues">${g.rinde.map(c=>'<li>'+esc(c)+'</li>').join('')}</ul><h2>para no lastimarte</h2><ul class="cues">${g.seguro.map(c=>'<li>'+esc(c)+'</li>').join('')}</ul>`
+    :'<p>no hay una ficha para este nombre. buscalo en youtube y quedate en un rango que no duela.</p>';
+  $('#modal').innerHTML=`<div class="modal" onclick="if(event.target===this)closeGuide()"><div class="sheet" data-sheet="guide">
+    <h2 style="margin-top:0">${esc(title)}</h2>${img}${body}
+    <a class="yt" target="_blank" rel="noopener" href="${ytUrl(g?g.name:raw)}">ver en youtube</a>
+    <button class="big" style="margin-top:10px" onclick="closeGuide()">cerrar</button>
+  </div></div>`;
+}
+function closeGuide(){const m=$('#modal');if(m)m.innerHTML=''}
+function zoomImg(src){
+  const z=document.createElement('div');
+  z.className='zoom';
+  z.onclick=()=>z.remove();
+  const im=document.createElement('img');
+  im.src=src;im.alt='';
+  z.appendChild(im);
+  document.body.appendChild(z);
+}
 
 /* ---------- home ---------- */
 function vHome(){
-  let h=`<div class="top"><h1>rutinas</h1></div>`;
-  if(S.active){const r=R(S.active.rid);h+=`<div class="card"><b>entreno en curso</b><div class="mut">${esc(r?r.name:'')}</div><div class="row" style="margin-top:10px"><button class="pri" onclick="go('workout')">seguir</button><button class="danger" onclick="cancelWorkout()">descartar</button></div></div>`}
+  let h=`<div class="top"><h1>rutinas</h1></div>
+  <div class="card" data-primer><b>antes de empezar</b><ul class="cues">
+    <li>hacé la entrada en calor de la rutina, unos 5 minutos, antes de la primera serie.</li>
+    <li>dejá 1 o 2 repeticiones en reserva: la última tiene que salir con buena forma.</li>
+    <li>progresá de a poco. primero la técnica, después las repeticiones, después el peso.</li>
+  </ul></div>`;
+  if(S.active){const r=R(S.active.rid);h+=`<div class="card"><b>entreno en curso</b><div class="mut">${esc(r?r.name:S.active.name||'')}</div><div class="row" style="margin-top:10px"><button class="pri" onclick="go('workout')">seguir</button><button class="danger" onclick="cancelWorkout()">descartar</button></div></div>`}
   if(!S.routines.length)h+=`<div class="empty">no tenés rutinas todavía</div>`;
   S.routines.forEach((r,i)=>{
-    const mins=Math.round(r.exercises.reduce((a,e)=>a+e.sets*((e.mode==='time'?e.secs:40)+e.rest),0)/60);
+    const wuSecs=(r.warmup||[]).reduce((a,d)=>a+(+d.secs||0),0);
+    const mins=Math.round((r.exercises.reduce((a,e)=>a+e.sets*((e.mode==='time'?e.secs:40)+e.rest),0)+wuSecs)/60);
     h+=`<div class="card"><div class="top"><div style="flex:1"><div style="font-size:20px;font-weight:700">${esc(r.name)}</div>
-    <div class="mut">${r.exercises.length} ejercicios · ~${mins} min</div></div>
-    <button class="ico" onclick="moveR(${i},-1)" aria-label="subir">↑</button><button class="ico" onclick="moveR(${i},1)" aria-label="bajar">↓</button></div>
-    <div class="row" style="margin-top:10px"><button class="pri" onclick="startWorkout('${r.id}')">▶ empezar</button><button onclick="go('edit','${r.id}')">editar</button></div></div>`});
+    <div class="mut">${r.exercises.length} ejercicios · entrada en calor · ~${mins} min</div></div>
+    <button class="ico" onclick="moveR(${i},-1)" aria-label="subir">↑</button><button class="ico" onclick="moveR(${i},1)" aria-label="bajar">↓</button></div>`;
+    r.exercises.forEach(e=>{h+=`<div class="exline"><span>${esc(e.name)}</span>${guideBtn(e.name)}</div>`});
+    const wu=r.warmup||[];
+    if(wu.length){
+      h+=`<details class="wu"><summary>entrada en calor · ${Math.max(1,Math.round(wuSecs/60))} min</summary>`;
+      wu.forEach(d=>{h+=`<div class="exline"><span>${esc(d.name)}</span>${d.guide?guideBtn(d.guide):''}</div>`});
+      h+=`</details>`;
+    }
+    h+=`<div class="row" style="margin-top:10px"><button class="pri" onclick="startWorkout('${r.id}')">▶ empezar</button><button onclick="go('edit','${r.id}')">editar</button></div></div>`});
   h+=`<button class="big" onclick="newRoutine()">+ nueva rutina</button>`;
   h+=`<p class="mut" style="margin-top:20px">equipo: ${esc(S.equipment)}</p>`;
   return h;
 }
 function moveR(i,d){const j=i+d;if(j<0||j>=S.routines.length)return;[S.routines[i],S.routines[j]]=[S.routines[j],S.routines[i]];save();render()}
-function newRoutine(){const n=prompt('nombre de la rutina','fuerza B');if(!n)return;const r={id:uid(),name:n.trim(),exercises:[]};S.routines.push(r);save();go('edit',r.id)}
+function newRoutine(){const n=prompt('nombre de la rutina','rutina nueva');if(!n)return;const r={id:uid(),name:n.trim(),exercises:[],warmup:[]};S.routines.push(r);save();go('edit',r.id)}
 
 /* ---------- editor ---------- */
 function vEdit(){
   const r=R(view.rid);if(!r)return vHome();
+  if(!Array.isArray(r.warmup))r.warmup=[];
   let h=`<div class="top"><button class="ico" onclick="go('home')">←</button><h1>editar</h1></div>
   <label>nombre</label><input value="${esc(r.name)}" onchange="R('${r.id}').name=this.value.trim()||'sin nombre';save()">
-  <h2>ejercicios</h2>`;
+  <h2>entrada en calor</h2>`;
+  if(!r.warmup.length)h+=`<div class="empty">sin entrada en calor.</div>`;
+  r.warmup.forEach((d,i)=>{h+=`<div class="exline"><div class="t"><b>${i+1}. ${esc(d.name)}</b><div class="mut">${d.secs} s${d.cue?' · '+esc(d.cue):''}</div></div>
+    <button class="ico" onclick="moveWu(${i},-1)" aria-label="subir">↑</button>
+    <button class="ico" onclick="moveWu(${i},1)" aria-label="bajar">↓</button>
+    <button class="ico" data-edit-wu onclick="editWu('${d.id}')" aria-label="editar">✎</button></div>`});
+  h+=`<button class="big" onclick="editWu(null)">+ agregar paso</button><h2>ejercicios</h2>`;
   if(!r.exercises.length)h+=`<div class="empty">sin ejercicios. sumá el primero.</div>`;
   r.exercises.forEach((e,i)=>{h+=`<div class="ex"><div class="t" onclick="editEx('${e.id}')"><b>${i+1}. ${esc(e.name)}</b><div class="mut">${e.sets} × ${target(e)} · ${kg(e.weight)} · desc. ${e.rest}s${e.note?' · '+esc(e.note):''}</div></div>
-    <button onclick="moveE(${i},-1)" aria-label="subir">↑</button><button onclick="moveE(${i},1)" aria-label="bajar">↓</button><button onclick="editEx('${e.id}')" aria-label="editar">✎</button></div>`});
+    <button onclick="moveE(${i},-1)" aria-label="subir">↑</button><button onclick="moveE(${i},1)" aria-label="bajar">↓</button><button onclick="editEx('${e.id}')" aria-label="editar">✎</button>${guideBtn(e.name)}</div>`});
   h+=`<button class="big" onclick="editEx(null)">+ agregar ejercicio</button>
   <div class="row" style="margin-top:12px"><button onclick="dupRoutine()">duplicar</button><button class="danger" onclick="delRoutine()">borrar rutina</button></div>`;
   return h;
 }
 function moveE(i,d){const ex=R(view.rid).exercises,j=i+d;if(j<0||j>=ex.length)return;[ex[i],ex[j]]=[ex[j],ex[i]];save();render()}
-function dupRoutine(){const r=R(view.rid),c=JSON.parse(JSON.stringify(r));c.id=uid();c.name=r.name+' (copia)';c.exercises.forEach(e=>e.id=uid());S.routines.push(c);save();go('edit',c.id)}
+function moveWu(i,d){const wu=R(view.rid).warmup||[],j=i+d;if(j<0||j>=wu.length)return;[wu[i],wu[j]]=[wu[j],wu[i]];save();render()}
+function dupRoutine(){const r=R(view.rid),c=JSON.parse(JSON.stringify(r));c.id=uid();c.name=r.name+' (copia)';c.exercises.forEach(e=>e.id=uid());(c.warmup||[]).forEach(d=>d.id=uid());S.routines.push(c);save();go('edit',c.id)}
 function delRoutine(){if(!confirm('¿borrar esta rutina? el historial se mantiene.'))return;S.routines=S.routines.filter(r=>r.id!==view.rid);save();go('home')}
-let draft=null;
 function editEx(id){
   const r=R(view.rid);const e=id?r.exercises.find(x=>x.id===id):null;
   draft=e?{...e}:{id:uid(),name:'',sets:3,mode:'reps',reps:'10',secs:30,weight:'',rest:60,note:'',_new:true};
@@ -164,28 +379,98 @@ function saveEx(){syncEx();const d=draft;if(!d.name.trim()){alert('ponele un nom
   const r=R(view.rid),isNew=d._new;delete d._new;
   if(isNew)r.exercises.push(d);else{const i=r.exercises.findIndex(x=>x.id===d.id);r.exercises[i]=d}save();closeModal();render()}
 function delEx(){if(!confirm('¿borrar ejercicio?'))return;const r=R(view.rid);r.exercises=r.exercises.filter(x=>x.id!==draft.id);save();closeModal();render()}
-function closeModal(){$('#modal').innerHTML='';draft=null}
+function editWu(id){
+  const r=R(view.rid);
+  const d=id?(r.warmup||[]).find(x=>x.id===id):null;
+  draftWu=d?{...d}:{id:uid(),name:'',secs:30,cue:'',guide:'',_new:true};
+  drawWu();
+}
+function drawWu(){
+  const d=draftWu;
+  const opts=['<option value="">sin ficha</option>'].concat(LIBRARY.map(g=>`<option value="${esc(g.name)}"${d.guide===g.name?' selected':''}>${esc(g.name)}</option>`)).join('');
+  $('#modal').innerHTML=`<div class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet">
+  <h2 style="margin-top:0">${d._new?'nuevo paso':'editar paso'}</h2>
+  <label>nombre</label><input id="wu_name" value="${esc(d.name)}">
+  <label>segundos</label><input id="wu_secs" type="number" inputmode="numeric" min="5" value="${d.secs||30}">
+  <label>pista</label><input id="wu_cue" value="${esc(d.cue||'')}" placeholder="una línea de cómo hacerlo">
+  <label>ficha</label><select id="wu_guide">${opts}</select>
+  <div class="row" style="margin-top:16px">${d._new?'':`<button class="danger" onclick="delWu()">borrar</button>`}<button onclick="closeModal()">cancelar</button><button class="pri" data-save-wu onclick="saveWu()">guardar</button></div>
+  </div></div>`;
+}
+function saveWu(){
+  const d=draftWu;if(!d)return;
+  const nameEl=$('#wu_name'),secsEl=$('#wu_secs'),cueEl=$('#wu_cue'),guideEl=$('#wu_guide');
+  if(nameEl)d.name=nameEl.value.trim();
+  if(secsEl)d.secs=Math.max(5,parseInt(secsEl.value,10)||30);
+  if(cueEl)d.cue=cueEl.value.trim();
+  if(guideEl)d.guide=guideEl.value;
+  if(!d.name){alert('ponele un nombre');return}
+  delete d._new;
+  const r=R(view.rid);
+  if(!Array.isArray(r.warmup))r.warmup=[];
+  const i=r.warmup.findIndex(x=>x.id===d.id);
+  if(i<0)r.warmup.push(d);else r.warmup[i]=d;
+  save();closeModal();render();
+}
+function delWu(){
+  if(!confirm('¿borrar este paso?'))return;
+  const r=R(view.rid);
+  r.warmup=(r.warmup||[]).filter(x=>x.id!==draftWu.id);
+  save();closeModal();render();
+}
+function closeModal(){const m=$('#modal');if(m)m.innerHTML='';draft=null;draftWu=null}
 
 /* ---------- workout ---------- */
 function startWorkout(rid){
   const r=R(rid);if(!r.exercises.length){alert('la rutina no tiene ejercicios');return}
   if(S.active&&!confirm('ya hay un entreno en curso. ¿lo descarto y empiezo este?'))return;
   unlockAudio();
-  S.active={rid,name:r.name,start:Date.now(),ex:JSON.parse(JSON.stringify(r.exercises)),i:0,s:0,phase:'ready',end:0,
+  const wu=(r.warmup||[]).filter(d=>d&&d.secs>0).map(d=>({...d}));
+  S.active={rid,name:r.name,start:Date.now(),ex:JSON.parse(JSON.stringify(r.exercises)),i:0,s:0,
+    phase:wu.length?'warmup':'ready',end:wu.length?Date.now()+wu[0].secs*1000:0,wu,wui:0,
     log:r.exercises.map(e=>({name:e.name,sets:[]})),cur:null};
-  primeCur();save();wakeOn();go('workout');
+  if(!wu.length)primeCur();
+  save();wakeOn();go('workout');
 }
 function primeCur(){const A=S.active,e=A.ex[A.i];const last=A.log[A.i].sets.at(-1);
   A.cur={reps:last?last.reps:(e.mode==='time'?e.secs:(parseInt(e.reps)||'')),kg:last?last.kg:e.weight}}
 function cancelWorkout(){if(!confirm('¿descartar el entreno en curso? no se guarda.'))return;S.active=null;save();wakeOff();go('home')}
+function nextWarm(){
+  const A=S.active;if(!A)return;
+  A.wui=(A.wui||0)+1;
+  if(!A.wu||A.wui>=A.wu.length){A.phase='ready';A.end=0;primeCur()}
+  else{A.phase='warmup';A.end=Date.now()+A.wu[A.wui].secs*1000}
+}
+function nextWarmDrill(){unlockAudio();nextWarm();save();render()}
+function skipWarmup(){
+  const A=S.active;if(!A)return;
+  A.wui=(A.wu||[]).length;A.phase='ready';A.end=0;primeCur();save();render();
+}
+function vWarmup(){
+  const A=S.active,list=A.wu||[],d=list[A.wui];
+  if(!d){A.phase='ready';if(!A.cur)primeCur();return vWorkout()}
+  const left=(A.end-Date.now())/1000;
+  const elMin=Math.floor((Date.now()-A.start)/60000);
+  return `<div data-warmup><div class="top"><button class="ico" onclick="go('home')">←</button><h1 style="font-size:18px">${esc(A.name)}</h1><span class="mut">${elMin} min</span></div>
+  <div class="phase">entrada en calor</div>
+  <div class="mut">paso ${A.wui+1} de ${list.length}</div>
+  <div class="exname">${esc(d.name)}</div>
+  <p class="cue">${esc(d.cue||'')}</p>
+  ${d.guide?guideBtn(d.guide):''}
+  <div class="card" style="margin-top:14px"><div class="timer" id="timer">${fmt(left)}</div>
+  <div class="row"><button onclick="nextWarmDrill()">siguiente</button><button class="pri" onclick="skipWarmup()">saltar entrada en calor</button></div></div>
+  <p class="mut">después arranca ${esc(A.ex[0]?A.ex[0].name:'el primer ejercicio')}.</p></div>`;
+}
 function vWorkout(){
   const A=S.active;if(!A)return vHome();
-  const e=A.ex[A.i],el=Math.floor((Date.now()-A.start)/60000);
   if(A.phase==='done')return vDone();
+  if(A.phase==='warmup')return vWarmup();
+  const e=A.ex[A.i],el=Math.floor((Date.now()-A.start)/60000);
   const dots=A.ex.map((x,k)=>`<span class="${k<A.i?'d':k===A.i?'c':''}"></span>`).join('');
   let h=`<div class="top"><button class="ico" onclick="go('home')">←</button><h1 style="font-size:18px">${esc(A.name)}</h1><span class="mut">${el} min</span></div>
   <div class="dots">${dots}</div><div class="mut">ejercicio ${A.i+1} de ${A.ex.length}</div>
   <div class="exname">${esc(e.name)}</div>
+  ${guideBtn(e.name)}
   <div><span class="pill">serie ${A.s+1} de ${e.sets}</span><span class="pill">${target(e)}</span><span class="pill">${kg(e.weight)}</span>${e.note?`<span class="pill">${esc(e.note)}</span>`:''}</div>`;
   if(A.phase==='rest'||A.phase==='work'){
     const left=(A.end-Date.now())/1000;
@@ -268,16 +553,24 @@ function render(){
   $('#app').innerHTML=v()+nav();
   clearInterval(tick);tick=null;
   const A=S.active;
-  if(view.name==='workout'&&A&&(A.phase==='rest'||A.phase==='work'))tick=setInterval(onTick,250);
-  else if(A&&(A.phase==='rest'||A.phase==='work'))tick=setInterval(()=>{if(Date.now()>=A.end)onTick()},500);
+  const timed=A&&(A.phase==='rest'||A.phase==='work'||A.phase==='warmup');
+  if(view.name==='workout'&&timed)tick=setInterval(onTick,250);
+  else if(timed)tick=setInterval(()=>{if(Date.now()>=A.end)onTick()},500);
 }
 let lastSec=null;
 function onTick(){
-  const A=S.active;if(!A||(A.phase!=='rest'&&A.phase!=='work')){clearInterval(tick);return}
+  const A=S.active;if(!A||(A.phase!=='rest'&&A.phase!=='work'&&A.phase!=='warmup')){clearInterval(tick);return}
   const left=(A.end-Date.now())/1000,el=$('#timer');
   if(el)el.textContent=fmt(left);
   const sec=Math.ceil(left);if(sec!==lastSec&&sec<=3&&sec>0){shortBeep()}lastSec=sec;
-  if(left<=0){beep(3);if(A.phase==='rest'){advance()}else{A.phase='ready';A.cur.reps=String(A.ex[A.i].secs);setDone(true);return}
+  if(left<=0){
+    if(A.phase==='warmup'){
+      const last=A.wui>=(A.wu||[]).length-1;
+      if(last)beep(3);else shortBeep();
+      nextWarm();save();if(view.name!=='workout')view.name='workout';render();
+      const c=$('.card');c&&c.classList.add('flash');return;
+    }
+    beep(3);if(A.phase==='rest'){advance()}else{A.phase='ready';A.cur.reps=String(A.ex[A.i].secs);setDone(true);return}
     save();if(view.name!=='workout')view.name='workout';render();const c=$('.card');c&&c.classList.add('flash')}
 }
 
@@ -295,6 +588,9 @@ function onTick(){
 })();
 if(S.active&&S.active.phase!=='done')wakeOn();
 render();
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
+}
 </script>
 </body>
 </html>
