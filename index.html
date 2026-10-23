@@ -60,6 +60,7 @@ table{width:100%;border-collapse:collapse;font-size:15px}td{padding:4px 2px;bord
 ul.cues{margin:8px 0 0;padding-left:18px}ul.cues li{margin:6px 0}
 .cue{font-size:17px;margin:6px 0 10px}
 .guideimg{width:100%;border-radius:12px;display:block;cursor:zoom-in;background:#000}
+.guidefig{margin:0 0 12px}.guidefig figcaption{margin:4px 0 0}
 .zoom{position:fixed;inset:0;background:#000e;z-index:30;display:flex;align-items:center;justify-content:center;padding:10px}
 .zoom img{max-width:100%;max-height:100%;object-fit:contain}
 a.yt{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:14px;background:var(--card2);color:var(--tx);text-decoration:none;margin-top:14px}
@@ -74,7 +75,7 @@ button.comida{margin:0 0 12px}
 <script>
 'use strict';
 const KEY='entreno.v1';
-const SCHEMA=2;
+const SCHEMA=3;
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=s=>document.querySelector(s);
@@ -127,8 +128,32 @@ const LIBRARY=[
     seguro:['no empujes con la lumbar: la extensión la hacen los glúteos.','mentón suave hacia el pecho, cuello relajado.','las rodillas siguen la línea de los pies.','pará si duele la espalda baja.']},
   {name:'dead bug',img:'img/12-dead-bug_1bbf.png',credit:'kettlebell kings',
     desc:'boca arriba, brazos al techo y rodillas a 90 grados. extendé un brazo y la pierna de enfrente sin despegar la lumbar, y volvé al centro. alterná.',
-    rinde:['lento: 2 o 3 segundos por lado.','exhalá mientras extendés y mantené el abdomen hacia el piso.','si se arquea la espalda, achicá el rango.','sumá repeticiones solo cuando la lumbar no se despega.'],
-    seguro:['la zona lumbar queda apoyada todo el tiempo.','no aguantes la respiración.','cuello relajado, sin tirar de la cabeza.','pará si aparece dolor lumbar.']}
+    rinde:['lento: 2 o 3 segundos por lado.','exhalá mientras extendés y mantené el abdomen hacia el piso.','si se arquea la espalda, achicá el rango.','sumá repeticiones solo cuando la lumbar no se despegue.'],
+    seguro:['la zona lumbar queda apoyada todo el tiempo.','no aguantes la respiración.','cuello relajado, sin tirar de la cabeza.','pará si aparece dolor lumbar.']},
+  {name:'curl de bíceps',credit:'ilustración',
+    imgs:[
+      {src:'img/13-curl-biceps-inicio.png',label:'posición inicial'},
+      {src:'img/13-curl-biceps-fin.png',label:'posición final'}
+    ],
+    desc:'de pie, con la pesa colgando al lado del cuerpo y la palma mirando adelante. el codo queda quieto: subí la pesa hasta el hombro y bajá el brazo estirado.',
+    rinde:['subí en un segundo y bajá en dos, sin balancear el torso.','el codo no se va adelante ni se abre. se queda pegado al costado.','exhalá al subir la pesa.','si las últimas salen limpias, subí un poco el peso y dejá 1 o 2 en reserva.'],
+    seguro:['no uses envión de cadera ni tires los hombros atrás para ayudar.','la muñeca queda firme, sin doblarla hacia atrás.','no dejes caer la pesa: la bajada también se controla.','pará si aparece un dolor punzante en el codo.']},
+  {name:'curl martillo',credit:'ilustración',
+    imgs:[
+      {src:'img/14-curl-martillo-inicio.png',label:'posición inicial'},
+      {src:'img/14-curl-martillo-fin.png',label:'posición final'}
+    ],
+    desc:'como el curl, pero con la palma mirando el cuerpo y el pulgar hacia adelante, como si sostuvieras un martillo. subí la pesa hacia el hombro sin girar la muñeca y bajá hasta estirar el brazo.',
+    rinde:['el agarre queda neutro en todo el recorrido: no des vuelta la palma.','bajá en unos 2 segundos, sin soltar la tensión.','exhalá al subir.','el codo quieto al costado. si está fácil, subí el peso antes que la velocidad.'],
+    seguro:['no balancees el torso para llegar arriba.','la muñeca sigue la línea del antebrazo, sin quebrarla.','hombros bajos, lejos de las orejas.','pará si duele el codo o la muñeca.']},
+  {name:'pullover con kettlebell',credit:'ilustración',
+    imgs:[
+      {src:'img/15-pullover-inicio.png',label:'posición inicial'},
+      {src:'img/15-pullover-fin.png',label:'posición final'}
+    ],
+    desc:'acostado boca arriba en el piso, rodillas flexionadas y la lumbar apoyada. las dos manos en el mango, brazos casi estirados sobre el pecho. bajá la pesa por detrás de la cabeza, con los codos apenas flexionados, hasta donde llegues sin arquearte, y volvé al pecho.',
+    rinde:['bajá en 2 o 3 segundos y subí sin tironear.','el piso corta el rango: no hace falta bajar más de lo que el hombro permite.','exhalá al volver la pesa hacia el pecho.','abdomen firme para que la lumbar no se despegue.'],
+    seguro:['si se arquea la espalda, achicá el recorrido.','codos apenas blandos: ni trabados ni muy doblados.','no sueltes el mango ni dejes rebotar la pesa en el piso.','pará si pinza el hombro o duele la lumbar.']}
 ];
 
 function findGuide(name){
@@ -157,86 +182,114 @@ function warmupA(){
   return [
     drill('jumping jacks o trote en el lugar',60,'un minuto a ritmo cómodo, apoyá blando y no te quedes sin aire.',''),
     drill('círculos de cadera por lado',40,'10 por lado, círculos amplios y lentos, con el torso quieto.',''),
-    drill('sentadillas sin peso lentas',45,'10 reps lentas, talones apoyados y rodillas hacia los pies.','sentadilla goblet'),
+    drill('sentadillas sin peso lentas',40,'10 reps lentas, talones apoyados y rodillas hacia los pies.','sentadilla goblet'),
     drill('bisagras de cadera (good mornings sin peso)',40,'10 good mornings sin peso: cola atrás, espalda neutra, rodillas blandas.','swing'),
-    drill('círculos de brazos + aperturas con banda (pull-aparts)',50,'10 círculos y 10 pull-aparts, omóplatos juntos sin encoger los hombros.','remo a una mano'),
+    drill('círculos de brazos',35,'10 círculos amplios, hombros lejos de las orejas, sin tironear.','press de hombros a una mano'),
+    drill('flexiones de codo sin peso',30,'8 por brazo, codo quieto al costado y la palma adelante.','curl de bíceps'),
     drill('flexiones inclinadas o en rodillas',40,'8 reps con el cuerpo en línea. si se desarma, apoyá las rodillas.','flexiones'),
-    drill('swings livianos con el de 8 kg',45,'10 swings con el de 8 kg: es una bisagra y la pesa sube hasta el pecho.','swing')
+    drill('swings livianos con el de 8 kg',40,'10 swings con el de 8 kg: es una bisagra y la pesa sube hasta el pecho.','swing')
   ];
 }
 function warmupB(){
   return [
     drill('trote en el lugar',60,'un minuto suave, apoyá blando y mové los brazos.',''),
     drill('puentes de glúteos sin peso',40,'10 reps sin peso, pausá arriba apretando glúteos y sin arquear la lumbar.','puente de glúteos'),
-    drill('bisagras de cadera sin peso',40,'10 reps, cola atrás y la espalda neutra, como el peso muerto.','peso muerto rumano'),
-    drill('zancadas hacia atrás sin peso por pierna',50,'6 por pierna, paso largo y la rodilla de adelante sigue el pie.','zancada hacia atrás'),
-    drill('pull-aparts con banda',35,'10 reps, tirás la banda al pecho juntando los omóplatos.','remo con banda'),
+    drill('sentadillas sin peso lentas',40,'8 reps lentas, talones apoyados y rodillas hacia los pies.','sentadilla goblet'),
+    drill('círculos de hombros y brazos',40,'10 círculos amplios hacia atrás, hombros lejos de las orejas.','press de piso'),
+    drill('apertura de pecho y brazos al techo',40,'8 veces: abrí el pecho y llevá los brazos arriba, costillas abajo, sin arquear la lumbar.','pullover con kettlebell'),
+    drill('flexiones de codo sin peso',35,'10 por brazo, codo quieto al costado y la palma adelante, sin peso.','curl de bíceps'),
     drill('flexiones inclinadas',40,'8 reps con las manos altas y la cadera firme.','flexiones'),
-    drill('dead bugs por lado lentos',50,'5 por lado, bien lentos, sin despegar la lumbar del piso.','dead bug')
+    drill('dead bugs por lado lentos',45,'5 por lado, bien lentos, sin despegar la lumbar del piso.','dead bug')
   ];
 }
 function warmupFromExercises(exercises){
   const names=(exercises||[]).map(e=>norm(e.name));
   const has=(...ks)=>ks.some(k=>names.some(n=>n.includes(norm(k))));
   const drills=[drill('trote en el lugar',60,'un minuto suave para subir la temperatura, apoyando blando.','')];
-  if(has('sentadilla'))drills.push(drill('sentadillas sin peso lentas',45,'10 reps lentas, talones apoyados y rodillas hacia los pies.','sentadilla goblet'));
+  if(has('sentadilla'))drills.push(drill('sentadillas sin peso lentas',40,'10 reps lentas, talones apoyados y rodillas hacia los pies.','sentadilla goblet'));
   if(has('zancada'))drills.push(drill('zancadas hacia atrás sin peso por pierna',50,'6 por pierna, paso largo y la rodilla sigue el pie.','zancada hacia atrás'));
   if(has('peso muerto','rumano','bisagra','swing'))drills.push(drill('bisagras de cadera sin peso',40,'10 reps, cola atrás y espalda neutra.','peso muerto rumano'));
-  if(has('swing'))drills.push(drill('swings livianos con el de 8 kg',45,'10 swings suaves: bisagra, la pesa hasta el pecho.','swing'));
+  if(has('swing'))drills.push(drill('swings livianos con el de 8 kg',40,'10 swings suaves: bisagra, la pesa hasta el pecho.','swing'));
+  if(has('press de hombros','pullover'))drills.push(drill('círculos de hombros y brazos',40,'10 círculos amplios hacia atrás, hombros lejos de las orejas.','press de hombros a una mano'));
+  if(has('pullover'))drills.push(drill('brazos al techo y apertura de pecho',40,'8 veces, brazos arriba y pecho abierto, sin arquear la lumbar.','pullover con kettlebell'));
+  if(has('curl'))drills.push(drill('flexiones de codo sin peso',35,'10 por brazo, codo quieto al costado, sin carga.','curl de bíceps'));
   if(has('remo'))drills.push(drill('pull-aparts con banda',35,'10 reps juntando los omóplatos, sin encoger.','remo con banda'));
   if(has('flexiones','press de piso','press de hombros'))drills.push(drill('flexiones inclinadas',40,'8 reps con las manos altas y el cuerpo en línea.','flexiones'));
   if(has('puente','gluteo'))drills.push(drill('puentes de glúteos sin peso',40,'10 reps, pausa arriba, sin empujar con la lumbar.','puente de glúteos'));
-  if(has('dead bug'))drills.push(drill('dead bugs por lado lentos',50,'5 por lado, lumbares apoyadas, sin apuro.','dead bug'));
+  if(has('dead bug'))drills.push(drill('dead bugs por lado lentos',45,'5 por lado, lumbares apoyadas, sin apuro.','dead bug'));
   return drills;
 }
 function warmupFor(routine){
   const n=norm(routine.name);
   if(n===norm('sentadilla, remo y swing'))return warmupA();
-  if(n===norm('peso muerto, zancada y glúteos'))return warmupB();
+  if(n===norm('tren superior y glúteos')||n===norm('peso muerto, zancada y glúteos'))return warmupB();
   return warmupFromExercises(routine.exercises||[]);
 }
 function routineA(){
   return {id:uid(),name:'sentadilla, remo y swing',warmup:warmupA(),exercises:[
     makeEx('sentadilla goblet',4,'12','14',75,''),
-    makeEx('remo a una mano',4,'10','14',60,'por brazo'),
     makeEx('press de hombros a una mano',3,'10','8',60,'por brazo'),
     makeEx('swing',4,'15','14',75,''),
     makeEx('flexiones de brazos',3,'máx','',60,'dejando 2 en reserva'),
-    makeEx('plancha',3,'','',45,'',35)
+    makeEx('plancha',3,'','',45,'',35),
+    makeEx('curl de bíceps',2,'12','8',45,'')
   ]};
 }
 function routineB(){
-  return {id:uid(),name:'peso muerto, zancada y glúteos',warmup:warmupB(),exercises:[
-    makeEx('peso muerto rumano',4,'10','14',75,''),
-    makeEx('zancada hacia atrás',3,'8','2×8',60,'por pierna'),
-    makeEx('press de piso',4,'10','2×8',60,''),
-    makeEx('remo con banda',3,'15','',45,''),
+  return {id:uid(),name:'tren superior y glúteos',warmup:warmupB(),exercises:[
     makeEx('puente de glúteos',3,'15','14',45,''),
+    makeEx('press de piso',4,'10','2×8',60,''),
+    makeEx('curl de bíceps',3,'12','8',45,''),
+    makeEx('pullover con kettlebell',3,'12','8',60,''),
+    makeEx('curl martillo',3,'12','8',45,''),
+    makeEx('sentadilla goblet',3,'12','14',60,''),
     makeEx('dead bug',3,'10','',45,'por lado')
   ]};
 }
 function seed(){
   return {schema:SCHEMA,routines:[routineA(),routineB()],history:[],equipment:'kettlebells 6, 8, 8 y 14 kg · banda elástica · piso de goma',active:null};
 }
-/* schema 2 runs once: rename legacy routines, add B if it was never there,
-   and attach a warm-up. history and exercise edits stay as they are. */
-function migrate(S){
-  if((S.schema||0)>=SCHEMA)return S;
-  let sawB=false;
-  S.routines.forEach(r=>{
+function applyStandard(r,fresh){
+  r.name=fresh.name;
+  r.exercises=fresh.exercises;
+  r.warmup=fresh.warmup;
+}
+/* schema 3 replaces the two standard routines. any other name is left alone,
+   and history is never rewritten. */
+function refreshStandardRoutines(S){
+  (S.routines||[]).forEach(r=>{
     const n=norm(r.name);
-    if(n==='fuerza a (kettlebells)'||n==='fuerza a')r.name='sentadilla, remo y swing';
-    else if(/^fuerza b\b/.test(n))r.name='peso muerto, zancada y glúteos';
-    if(norm(r.name)===norm('peso muerto, zancada y glúteos'))sawB=true;
-  });
-  if(!sawB)S.routines.push(routineB());
-  S.routines.forEach(r=>{
-    if(!Array.isArray(r.warmup))r.warmup=warmupFor(r);
+    if(n===norm('sentadilla, remo y swing')||n==='fuerza a'||n==='fuerza a (kettlebells)')applyStandard(r,routineA());
+    else if(n===norm('tren superior y glúteos')||n===norm('peso muerto, zancada y glúteos')||/^fuerza b\b/.test(n))applyStandard(r,routineB());
   });
   if(S.active&&S.active.rid){
     const ar=S.routines.find(r=>r.id===S.active.rid);
     if(ar)S.active.name=ar.name;
   }
+}
+/* schema 2 renames legacy routines, adds wednesday if it was never there,
+   and attaches a warm-up. schema 3 then refreshes the two standard routines. */
+function migrate(S){
+  const from=S.schema||0;
+  if(from>=SCHEMA)return S;
+  if(from<2){
+    let sawB=false;
+    S.routines.forEach(r=>{
+      const n=norm(r.name);
+      if(n==='fuerza a (kettlebells)'||n==='fuerza a')r.name='sentadilla, remo y swing';
+      else if(/^fuerza b\b/.test(n))r.name='peso muerto, zancada y glúteos';
+      if(norm(r.name)===norm('peso muerto, zancada y glúteos'))sawB=true;
+    });
+    if(!sawB)S.routines.push(routineB());
+    S.routines.forEach(r=>{
+      if(!Array.isArray(r.warmup))r.warmup=warmupFor(r);
+    });
+    if(S.active&&S.active.rid){
+      const ar=S.routines.find(r=>r.id===S.active.rid);
+      if(ar)S.active.name=ar.name;
+    }
+  }
+  if(from<3)refreshStandardRoutines(S);
   S.schema=SCHEMA;
   return S;
 }
@@ -294,7 +347,8 @@ function openGuide(enc){
   const raw=decodeURIComponent(enc);
   const g=findGuide(raw);
   const title=g?g.name:raw;
-  const img=g?`<img class="guideimg" src="${g.img}" alt="${esc(g.name)}" onclick="zoomImg(this.src)"><p class="mut credit">fuente: ${esc(g.credit)}</p>`:'';
+  const frames=g?(Array.isArray(g.imgs)&&g.imgs.length?g.imgs:(g.img?[{src:g.img,label:''}]:[])):[];
+  const img=frames.map(f=>`<figure class="guidefig"><img class="guideimg" src="${esc(f.src)}" alt="${esc(f.label?g.name+', '+f.label:g.name)}" onclick="zoomImg(this.src)">${f.label?`<figcaption class="mut">${esc(f.label)}</figcaption>`:''}</figure>`).join('')+(g&&g.credit?`<p class="mut credit">fuente: ${esc(g.credit)}</p>`:'');
   const body=g?`<p>${esc(g.desc)}</p><h2>para que rinda</h2><ul class="cues">${g.rinde.map(c=>'<li>'+esc(c)+'</li>').join('')}</ul><h2>para no lastimarte</h2><ul class="cues">${g.seguro.map(c=>'<li>'+esc(c)+'</li>').join('')}</ul>`
     :'<p>no hay una ficha para este nombre. buscalo en youtube y quedate en un rango que no duela.</p>';
   $('#modal').innerHTML=`<div class="modal" onclick="if(event.target===this)closeGuide()"><div class="sheet" data-sheet="guide">

@@ -1,7 +1,7 @@
 'use strict';
 /* network-first for the app shell and menu.json so a publish and a new
    week of meals reach installed phones. images are cached for offline use. */
-const CACHE = 'entreno-v4';
+const CACHE = 'entreno-v5';
 const SHELL = ['index.html', './', 'menu.json'];
 const IMAGES = [
   'img/01-sentadilla-goblet_75b3.png',
@@ -15,7 +15,13 @@ const IMAGES = [
   'img/09-press-de-piso_c5c5.png',
   'img/10-remo-con-banda_9378.png',
   'img/11-puente-de-gluteos_c67f.png',
-  'img/12-dead-bug_1bbf.png'
+  'img/12-dead-bug_1bbf.png',
+  'img/13-curl-biceps-inicio.png',
+  'img/13-curl-biceps-fin.png',
+  'img/14-curl-martillo-inicio.png',
+  'img/14-curl-martillo-fin.png',
+  'img/15-pullover-inicio.png',
+  'img/15-pullover-fin.png'
 ];
 
 self.addEventListener('install', (event) => {

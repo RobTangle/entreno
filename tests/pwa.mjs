@@ -63,7 +63,8 @@ async function freshFlow(browser) {
   await page.goto(URL, { waitUntil: 'load' });
 
   await page.getByText('sentadilla, remo y swing', { exact: true }).waitFor();
-  await page.getByText('peso muerto, zancada y glúteos', { exact: true }).waitFor();
+  await page.getByText('tren superior y glúteos', { exact: true }).waitFor();
+  assert(await page.getByText('peso muerto, zancada y glúteos', { exact: true }).count() === 0, 'fresh load uses the wednesday name');
   assert(await page.getByText('fuerza A', { exact: false }).count() === 0, 'fresh load has no legacy fuerza A name');
 
   const primer = page.locator('[data-primer]');
@@ -74,31 +75,46 @@ async function freshFlow(browser) {
   assert(/progres/i.test(primerText), 'antes de empezar mentions gradual progress');
 
   const state = await readState(page);
-  assert(state.schema === 2, 'fresh state is schema 2');
+  assert(state.schema === 3, 'fresh state is schema 3');
   const a = state.routines.find((r) => r.name === 'sentadilla, remo y swing');
-  const b = state.routines.find((r) => r.name === 'peso muerto, zancada y glúteos');
+  const b = state.routines.find((r) => r.name === 'tren superior y glúteos');
   assert(a && b, 'both default routines are stored');
   assert(a.exercises[0].name === 'sentadilla goblet' && a.exercises[0].sets === 4 && a.exercises[0].reps === '12', 'routine A keeps the goblet prescription');
+  assert(!a.exercises.some((e) => /remo/i.test(e.name)), 'routine A has no row');
+  const curlA = a.exercises.at(-1);
+  assert(curlA.name === 'curl de bíceps' && curlA.sets === 2 && curlA.reps === '12' && curlA.weight === '8', 'curl de bíceps 8kg 2x12 at the end of A');
+  assert(a.exercises.map((e) => e.name).join(',') === [
+    'sentadilla goblet',
+    'press de hombros a una mano',
+    'swing',
+    'flexiones de brazos',
+    'plancha',
+    'curl de bíceps',
+  ].join(','), 'routine A exercise order');
   assert(b.exercises.map((e) => e.name).join(',') === [
-    'peso muerto rumano',
-    'zancada hacia atrás',
-    'press de piso',
-    'remo con banda',
     'puente de glúteos',
+    'press de piso',
+    'curl de bíceps',
+    'pullover con kettlebell',
+    'curl martillo',
+    'sentadilla goblet',
     'dead bug',
   ].join(','), 'routine B exercise order');
-  const pmr = b.exercises[0];
-  assert(pmr.sets === 4 && pmr.reps === '10' && pmr.weight === '14' && pmr.rest === 75, 'peso muerto rumano 14kg 4x10 rest 75');
-  const zanc = b.exercises[1];
-  assert(zanc.sets === 3 && zanc.reps === '8' && String(zanc.weight).includes('8') && zanc.rest === 60 && /pierna/i.test(zanc.note), 'zancada 2x8kg 3x8 por pierna rest 60');
-  const piso = b.exercises[2];
-  assert(piso.sets === 4 && piso.reps === '10' && String(piso.weight).includes('8') && piso.rest === 60, 'press de piso 2x8kg 4x10 rest 60');
-  const banda = b.exercises[3];
-  assert(banda.sets === 3 && banda.reps === '15' && banda.rest === 45 && !banda.weight, 'remo con banda 3x15 rest 45');
-  const puente = b.exercises[4];
+  assert(!b.exercises.some((e) => /peso muerto|zancada|remo/i.test(e.name)), 'wednesday drops the hinge, the lunge and the row');
+  const puente = b.exercises[0];
   assert(puente.sets === 3 && puente.reps === '15' && puente.weight === '14' && puente.rest === 45, 'puente 14kg 3x15 rest 45');
-  const bug = b.exercises[5];
-  assert(bug.sets === 3 && bug.reps === '10' && bug.rest === 45 && /lado/i.test(bug.note), 'dead bug 3x10 por lado rest 45');
+  const piso = b.exercises[1];
+  assert(piso.sets === 4 && piso.reps === '10' && String(piso.weight).includes('8') && piso.rest === 60, 'press de piso 2x8kg 4x10 rest 60');
+  const curlB = b.exercises[2];
+  assert(curlB.sets === 3 && curlB.reps === '12' && curlB.weight === '8', 'curl de bíceps 8kg 3x12');
+  const pullover = b.exercises[3];
+  assert(pullover.sets === 3 && pullover.reps === '12' && pullover.weight === '8', 'pullover 8kg 3x12');
+  const martillo = b.exercises[4];
+  assert(martillo.sets === 3 && martillo.reps === '12' && martillo.weight === '8', 'curl martillo 8kg 3x12');
+  const gobletB = b.exercises[5];
+  assert(gobletB.sets === 3 && gobletB.reps === '12' && gobletB.weight === '14', 'goblet sentadilla 14kg 3x12');
+  const bug = b.exercises[6];
+  assert(bug.sets === 3 && bug.reps === '10' && bug.rest === 45 && !bug.weight && /lado/i.test(bug.note), 'dead bug 3x10 por lado, sin kg');
 
   const sumA = a.warmup.reduce((n, d) => n + d.secs, 0);
   const sumB = b.warmup.reduce((n, d) => n + d.secs, 0);
@@ -109,19 +125,21 @@ async function freshFlow(browser) {
   assert(namesA.includes('círculos de cadera por lado'), 'A warm-up has hip circles');
   assert(namesA.includes('sentadillas sin peso lentas'), 'A warm-up has bodyweight squats');
   assert(/bisagras de cadera/i.test(namesA) && /good morning/i.test(namesA), 'A warm-up has hip hinges');
-  assert(/pull-apart/i.test(namesA) && /círculos de brazos/i.test(namesA), 'A warm-up has arm circles and pull-aparts');
+  assert(/círculos de brazos/i.test(namesA) && !/pull-apart/i.test(namesA), 'A warm-up has arm circles and no row pull-aparts');
+  assert(/flexiones de codo sin peso/i.test(namesA), 'A warm-up has unloaded elbow flexion');
   assert(namesA.includes('flexiones inclinadas o en rodillas'), 'A warm-up has easy push-ups');
   assert(/swings livianos/i.test(namesA) && /8 kg/i.test(namesA), 'A warm-up has light 8kg swings');
   assert(!/dead bug/i.test(namesA) && !/zancada/i.test(namesA), 'A warm-up does not borrow B patterns');
   const namesB = b.warmup.map((d) => d.name).join(' | ');
   assert(namesB.includes('trote en el lugar') && !/jumping jacks/i.test(namesB), 'B warm-up starts with a jog');
   assert(namesB.includes('puentes de glúteos sin peso'), 'B warm-up has glute bridges');
-  assert(namesB.includes('bisagras de cadera sin peso'), 'B warm-up has hinges');
-  assert(/zancadas hacia atrás sin peso/i.test(namesB), 'B warm-up has reverse lunges');
-  assert(namesB.includes('pull-aparts con banda'), 'B warm-up has band pull-aparts');
+  assert(namesB.includes('sentadillas sin peso lentas'), 'B warm-up has bodyweight squats');
+  assert(/círculos de hombros y brazos/i.test(namesB), 'B warm-up has shoulder circles');
+  assert(/apertura de pecho y brazos al techo/i.test(namesB), 'B warm-up has lat and chest mobility');
+  assert(/flexiones de codo sin peso/i.test(namesB), 'B warm-up has elbow and biceps mobility');
   assert(namesB.includes('flexiones inclinadas'), 'B warm-up has incline push-ups');
   assert(/dead bugs por lado/i.test(namesB), 'B warm-up has dead bugs');
-  assert(!/swing/i.test(namesB) && !/sentadilla/i.test(namesB), 'B warm-up does not borrow A patterns');
+  assert(!/bisagra/i.test(namesB) && !/zancada/i.test(namesB) && !/swing/i.test(namesB), 'B warm-up drops the hip hinge and the lunge');
   assert(a.warmup.every((d) => d.cue && d.cue.length > 8), 'each A drill has a one-line cue');
   assert(b.warmup.every((d) => d.cue && d.cue.length > 8), 'each B drill has a one-line cue');
   const squatDrill = a.warmup.find((d) => d.name.includes('sentadillas sin peso'));
@@ -153,6 +171,42 @@ async function freshFlow(browser) {
   await page.locator('.zoom').click();
   await page.locator('[data-sheet="guide"] button', { hasText: 'cerrar' }).click();
   await sheet.waitFor({ state: 'hidden' });
+
+  await page.locator('.exline', { hasText: 'curl de bíceps' }).first().locator('.howto').click();
+  const curlSheet = page.locator('[data-sheet="guide"]');
+  await curlSheet.waitFor();
+  const curlText = await curlSheet.innerText();
+  assert(/posición inicial/i.test(curlText) && /posición final/i.test(curlText), 'curl guide shows start and end');
+  assert(/para que rinda/i.test(curlText) && /para no lastimarte/i.test(curlText), 'curl guide has cues and errors');
+  assert(/codo/i.test(curlText) && /ilustración/i.test(curlText), 'curl guide is in spanish and credits the drawing');
+  const curlImgs = curlSheet.locator('img');
+  assert(await curlImgs.count() === 2, 'curl guide has two images');
+  assert((await curlImgs.nth(0).getAttribute('src')).includes('13-curl-biceps-inicio'), 'curl start image');
+  assert((await curlImgs.nth(1).getAttribute('src')).includes('13-curl-biceps-fin'), 'curl end image');
+  await page.locator('[data-sheet="guide"] button', { hasText: 'cerrar' }).click();
+
+  await page.locator('.exline', { hasText: 'curl martillo' }).locator('.howto').click();
+  const hammerSheet = page.locator('[data-sheet="guide"]');
+  await hammerSheet.waitFor();
+  const hammerText = await hammerSheet.innerText();
+  assert(/martillo|neutro|pulgar/i.test(hammerText), 'hammer curl guide describes the neutral grip');
+  assert(await hammerSheet.locator('img').count() === 2, 'hammer curl guide has two images');
+  assert((await hammerSheet.locator('img').nth(0).getAttribute('src')).includes('14-curl-martillo-inicio'), 'hammer start image');
+  await page.locator('[data-sheet="guide"] button', { hasText: 'cerrar' }).click();
+
+  await page.locator('.exline', { hasText: 'pullover con kettlebell' }).locator('.howto').click();
+  const pullSheet = page.locator('[data-sheet="guide"]');
+  await pullSheet.waitFor();
+  const pullText = await pullSheet.innerText();
+  assert(/piso/i.test(pullText) && /cabeza/i.test(pullText), 'pullover guide is the floor version');
+  assert(await pullSheet.locator('img').count() === 2, 'pullover guide has two images');
+  assert((await pullSheet.locator('img').nth(1).getAttribute('src')).includes('15-pullover-fin'), 'pullover end image');
+  const pullWidth = await pullSheet.locator('img').nth(1).evaluate((el) => (el.complete && el.naturalWidth) || new Promise((resolve, reject) => {
+    el.addEventListener('load', () => resolve(el.naturalWidth), { once: true });
+    el.addEventListener('error', () => reject(new Error('image failed')), { once: true });
+  }));
+  assert(pullWidth > 200, 'pullover end image loaded');
+  await page.locator('[data-sheet="guide"] button', { hasText: 'cerrar' }).click();
 
   await page.getByRole('button', { name: 'editar' }).first().click();
   await page.locator('.ex .howto').first().click();
@@ -187,7 +241,7 @@ async function freshFlow(browser) {
   assert(mid.history.length === 0, 'skipping the warm-up does not write history');
 
   await page.getByRole('button', { name: '←', exact: true }).click();
-  await page.locator('.card', { hasText: 'peso muerto, zancada y glúteos' }).getByRole('button', { name: /empezar/ }).click();
+  await page.locator('.card', { hasText: 'tren superior y glúteos' }).getByRole('button', { name: /empezar/ }).click();
   await page.locator('[data-warmup]').waitFor();
   assert(/trote en el lugar/i.test(await page.locator('[data-warmup]').innerText()), 'routine B starts with its own jog');
   assert(!/jumping jacks/i.test(await page.locator('[data-warmup]').innerText()), 'routine B does not run routine A drills');
@@ -230,6 +284,12 @@ async function migrationFlow(browser) {
       exercises: [{
         id: 'e1', name: 'sentadilla goblet', sets: 5, mode: 'reps', reps: '8', secs: 0, weight: '20', rest: 90, note: 'editado',
       }],
+    }, {
+      id: 'custom',
+      name: 'movilidad',
+      exercises: [{
+        id: 'c1', name: 'mi ejercicio raro', sets: 1, mode: 'reps', reps: '5', secs: 0, weight: '', rest: 20, note: 'queda',
+      }],
     }],
     history: [{
       id: 'h1',
@@ -246,22 +306,26 @@ async function migrationFlow(browser) {
   }, old);
   await page.goto(URL, { waitUntil: 'load' });
   await page.getByText('sentadilla, remo y swing', { exact: true }).waitFor();
-  await page.getByText('peso muerto, zancada y glúteos', { exact: true }).waitFor();
+  await page.getByText('tren superior y glúteos', { exact: true }).waitFor();
 
   let state = await readState(page);
-  assert(state.schema === 2, 'migration bumps schema to 2');
+  assert(state.schema === 3, 'migration bumps schema to 3');
   assert(state.equipment === 'mis kettlebells', 'migration keeps equipment');
   assert(state.history.length === 1 && state.history[0].id === 'h1', 'migration keeps history entries');
   assert(state.history[0].routine === 'fuerza A (kettlebells)', 'migration does not rewrite history names');
   assert(state.history[0].minutes === 32, 'migration keeps history details');
-  assert(state.routines.length === 2, 'missing B routine is added once');
+  assert(state.history[0].exercises[0].sets[0].kg === '20', 'migration keeps history sets');
+  assert(state.routines.length === 3, 'missing wednesday routine is added once, custom routine stays');
+  const custom = state.routines.find((r) => r.id === 'custom');
+  assert(custom && custom.name === 'movilidad' && custom.exercises[0].note === 'queda', 'a routine with another name is not replaced');
   const a = state.routines.find((r) => r.id === 'rA');
   assert(a && a.name === 'sentadilla, remo y swing', 'fuerza A (kettlebells) is renamed');
-  assert(a.exercises.length === 1 && a.exercises[0].id === 'e1', 'user exercises are not replaced');
-  assert(a.exercises[0].sets === 5 && a.exercises[0].weight === '20' && a.exercises[0].note === 'editado', 'user sets, load and note stay');
-  assert(a.warmup.some((d) => /swings livianos/i.test(d.name)), 'existing A routine receives the A warm-up');
-  const b = state.routines.find((r) => r.name === 'peso muerto, zancada y glúteos');
-  assert(b && b.exercises.length === 6 && b.warmup.some((d) => /dead bug/i.test(d.name)), 'added B routine includes its warm-up');
+  assert(!a.exercises.some((e) => /remo/i.test(e.name)) && a.exercises.at(-1).name === 'curl de bíceps', 'standard A routine drops the row and adds the curl');
+  assert(a.exercises[0].name === 'sentadilla goblet' && a.exercises[0].sets === 4, 'standard A routine uses the current prescription');
+  assert(a.warmup.some((d) => /flexiones de codo/i.test(d.name)) && a.warmup.some((d) => /swings livianos/i.test(d.name)), 'existing A routine receives the current A warm-up');
+  const b = state.routines.find((r) => r.name === 'tren superior y glúteos');
+  assert(b && b.exercises.some((e) => e.name === 'pullover con kettlebell') && b.warmup.some((d) => /dead bug/i.test(d.name)), 'added wednesday routine includes its warm-up');
+  assert(!b.warmup.some((d) => /bisagra|zancada/i.test(d.name)), 'added wednesday warm-up has no hip hinge');
 
   await page.getByRole('button', { name: 'historial' }).click();
   assert(/fuerza A \(kettlebells\)/i.test(await page.locator('#app').innerText()), 'history screen still shows the original routine name');
@@ -277,11 +341,12 @@ async function migrationFlow(browser) {
 
   await page.reload({ waitUntil: 'load' });
   state = await readState(page);
-  assert(state.routines.length === 2, 'reload does not add another B routine');
+  assert(state.routines.length === 3, 'reload does not add another wednesday routine');
   assert(state.history.length === 1 && state.history[0].id === 'h1', 'reload keeps history');
   const kept = state.routines.find((r) => r.id === 'rA');
   assert(kept && kept.warmup[0].name === 'trote suave de prueba', 'edited warm-up survives reload');
-  assert(state.routines.find((r) => r.id === 'rA').exercises[0].note === 'editado', 'reload does not restore default exercises');
+  assert(kept.exercises.at(-1).name === 'curl de bíceps' && kept.exercises[0].sets === 4, 'refreshed exercises survive reload');
+  assert(state.routines.find((r) => r.id === 'custom').exercises[0].note === 'queda', 'custom routine survives reload');
 
   assert(logs.length === 0, 'migration flow has no console errors: ' + logs.join(' | '));
   await context.close();
@@ -319,17 +384,18 @@ async function fuerzaBFlow(browser) {
   }, old);
   await page.goto(URL, { waitUntil: 'load' });
   const state = await readState(page);
-  assert(state.routines.length === 2, 'existing fuerza B is renamed instead of duplicated');
+  assert(state.routines.length === 2, 'existing fuerza B is refreshed instead of duplicated');
   const a = state.routines.find((r) => r.id === 'a');
   const b = state.routines.find((r) => r.id === 'b');
   assert(a.name === 'sentadilla, remo y swing', 'fuerza A is renamed');
-  assert(a.exercises[0].note === 'mio' && a.exercises.length === 1, 'fuerza A exercises stay');
+  assert(a.id === 'a' && !a.exercises.some((e) => /remo/i.test(e.name)) && a.exercises.at(-1).name === 'curl de bíceps', 'fuerza A becomes the current monday routine');
   assert(a.warmup.some((d) => /sentadillas sin peso/i.test(d.name)), 'renamed A gets the squat warm-up');
-  assert(b.name === 'peso muerto, zancada y glúteos', 'fuerza B... is renamed');
-  assert(b.exercises.length === 1 && b.exercises[0].id === 'bx' && b.exercises[0].note === 'no tocar', 'fuerza B exercises stay');
-  assert(b.warmup.some((d) => /puentes de glúteos sin peso/i.test(d.name)), 'renamed B gets the glute warm-up');
-  assert(!b.warmup.some((d) => /swing/i.test(d.name)), 'renamed B does not get swing drills');
+  assert(b.id === 'b' && b.name === 'tren superior y glúteos', 'fuerza B becomes the wednesday routine');
+  assert(b.exercises.some((e) => e.name === 'pullover con kettlebell') && !b.exercises.some((e) => e.note === 'no tocar'), 'wednesday prescription replaces the old list');
+  assert(b.warmup.some((d) => /puentes de glúteos sin peso/i.test(d.name)) && b.warmup.some((d) => /codo/i.test(d.name)), 'renamed B gets glutes, elbows and shoulders');
+  assert(!b.warmup.some((d) => /swing|bisagra|zancada/i.test(d.name)), 'renamed B does not keep hinge or swing drills');
   assert(state.history[0].routine === 'fuerza B (kettlebells)' && state.history[0].id === 'h9', 'fuerza B history text stays');
+  assert(state.history[0].exercises[0].name === 'mi ejercicio raro', 'history keeps the old exercise name');
   assert(logs.length === 0, 'fuerza B flow has no console errors: ' + logs.join(' | '));
   await context.close();
 }
@@ -526,7 +592,7 @@ async function bodyweightFlow(browser) {
   assert(String(byName['otro sin carga'].reps) === '12' && !byName['otro sin carga'].kg, 'zero load logs reps only');
   assert(state.history.some((h) => h.id === 'old' && h.exercises[0].sets[0].kg === '14'), 'migration does not rewrite old history');
   const sw = await (await fetch(`http://127.0.0.1:${PORT}/sw.js`)).text();
-  assert(sw.includes('entreno-v4'), 'service worker cache was bumped');
+  assert(sw.includes('entreno-v5'), 'service worker cache was bumped');
   assert(logs.length === 0, 'bodyweight flow has no console errors: ' + logs.join(' | '));
   await context.close();
 }
@@ -626,7 +692,7 @@ async function comidaFlow(browser) {
   assert(/desayuno a: huevos/i.test(fresh) && !/sentinel/i.test(fresh), 'online menu.json is network-first over a stale cache');
 
   const sw = await (await fetch(`http://127.0.0.1:${PORT}/sw.js`)).text();
-  assert(sw.includes('entreno-v4') && /menu\.json/.test(sw) && /networkFirstExact/.test(sw), 'menu.json uses its own network-first cache');
+  assert(sw.includes('entreno-v5') && /menu\.json/.test(sw) && /networkFirstExact/.test(sw), 'menu.json uses its own network-first cache');
   assert(logs.length === 0, 'comida flow has no console errors: ' + logs.join(' | '));
   await context.close();
 }
