@@ -1,7 +1,7 @@
 {
   "plantillas": {
-    "des A": "desayuno A: huevos",
-    "des B": "desayuno B: yogur con avena"
+    "des A": "desayuno A: 3 huevos revueltos + 1 tostada integral + 1 fruta",
+    "des B": "desayuno B: 200 g yogur griego + 30 g avena + fruta + 1 huevo duro"
   },
   "dias": {
     "2026-10-19": {
@@ -43,6 +43,48 @@
     "2026-10-25": {
       "desayuno": "des A",
       "almuerzo": "parrilla: pollo o lomo 200 g + ensaladas (si hay chorizo, uno solo)",
+      "merienda": "fruta + yogur",
+      "cena": "ensalada completa con pollo y huevo duro"
+    },
+    "2026-10-26": {
+      "desayuno": "des A",
+      "almuerzo": "200 g pechuga a la plancha + 150 g arroz cocido + ensalada",
+      "merienda": "yogur griego + fruta",
+      "cena": "tortilla de 3 huevos con espinaca y queso + ensalada"
+    },
+    "2026-10-27": {
+      "desayuno": "des B",
+      "almuerzo": "200 g carne picada especial con zapallitos y cebolla + 1 papa",
+      "merienda": "2 huevos duros + manzana",
+      "cena": "200 g muslo de pollo sin piel al horno con calabaza"
+    },
+    "2026-10-28": {
+      "desayuno": "des A",
+      "almuerzo": "200 g bife de nalga + puré de calabaza + ensalada",
+      "merienda": "queso magro + 2 tostadas",
+      "cena": "wok de 180 g de pollo con verduras y poco arroz"
+    },
+    "2026-10-29": {
+      "desayuno": "des B",
+      "almuerzo": "milanesas de pollo al horno (200 g) + ensalada",
+      "merienda": "yogur griego + fruta",
+      "cena": "2 hamburguesas caseras de carne magra + ensalada + 1 huevo"
+    },
+    "2026-10-30": {
+      "desayuno": "des A",
+      "almuerzo": "200 g peceto o carne picada + batata al horno",
+      "merienda": "2 huevos duros + fruta",
+      "cena": "libre (arrancar por la proteína)"
+    },
+    "2026-10-31": {
+      "desayuno": "des B a las 9:30 con banana extra (antes del jiu jitsu)",
+      "almuerzo": "14:00 grande: 200 g carne magra + 200 g arroz + ensalada",
+      "merienda": "yogur griego + fruta",
+      "cena": "revuelto de 3 huevos con jamón y verduras"
+    },
+    "2026-11-01": {
+      "desayuno": "des A",
+      "almuerzo": "pollo o lomo 200 g + ensaladas",
       "merienda": "fruta + yogur",
       "cena": "ensalada completa con pollo y huevo duro"
     }
