@@ -616,7 +616,7 @@ async function comidaFlow(browser) {
   const vp = page.viewportSize();
   assert(box && box.y >= 0 && box.y < (vp ? vp.height : 700), 'comida de hoy is reachable on the home screen');
   const monday = await openComida(page);
-  assert(/desayuno a: 3 huevos revueltos \+ 1 tostada integral/i.test(monday), 'monday expands desayuno A');
+  assert(/desayuno a: 3 huevos revueltos \+ 2 fetas de jamón \+ 1 tostada integral/i.test(monday), 'monday expands desayuno A');
   assert(/pechuga a la plancha/i.test(monday) && /150 g arroz cocido/i.test(monday), 'monday lunch');
   assert(/yogur \+ fruta/i.test(monday), 'monday snack');
   assert(/tortilla de 3 huevos/i.test(monday), 'monday dinner');
@@ -628,7 +628,7 @@ async function comidaFlow(browser) {
   const days = await week.locator('[data-dia]').evaluateAll((els) => els.map((el) => el.getAttribute('data-dia')));
   assert(days.join(',') === '2026-10-20,2026-10-21,2026-10-22,2026-10-23,2026-10-24,2026-10-25', 'week lists the other days, monday to sunday');
   const weekText = await week.innerText();
-  assert(/desayuno b: 200 g yogur griego \+ 30 g avena/i.test(weekText), 'week expands desayuno B');
+  assert(/desayuno b: 250 g yogur griego \+ 30 g avena/i.test(weekText), 'week expands desayuno B');
   assert(/jiu jitsu/i.test(weekText) && /banana extra/i.test(weekText), 'week shows saturday extras');
   assert(/bife de nalga/i.test(weekText), 'week shows wednesday');
   assert(!/pechuga a la plancha/i.test(weekText), 'today is not repeated in the rest of the week');
@@ -636,25 +636,32 @@ async function comidaFlow(browser) {
   await page.clock.setFixedTime(new Date(2026, 9, 24, 10, 0, 0));
   await page.reload({ waitUntil: 'load' });
   const saturday = await openComida(page);
-  assert(/desayuno b: 200 g yogur griego \+ 30 g avena \+ fruta \+ 1 huevo duro, a las 9:30 con banana extra \(antes del jiu jitsu\)/i.test(saturday), 'saturday expands des B and keeps the note');
+  assert(/desayuno b: 250 g yogur griego \+ 30 g avena \+ fruta \+ 2 huevos duros, a las 9:30 con banana extra \(antes del jiu jitsu\)/i.test(saturday), 'saturday expands des B and keeps the note');
   assert(/200 g arroz/i.test(saturday), 'saturday lunch');
   assert(/revuelto de 3 huevos/i.test(saturday), 'saturday dinner');
 
   await page.clock.setFixedTime(new Date(2026, 9, 20, 8, 0, 0));
   await page.reload({ waitUntil: 'load' });
   const tuesday = await openComida(page);
-  assert(/desayuno b: 200 g yogur griego \+ 30 g avena/i.test(tuesday), 'tuesday is desayuno B');
+  assert(/desayuno b: 250 g yogur griego \+ 30 g avena/i.test(tuesday), 'tuesday is desayuno B');
   assert(/zapallitos/i.test(tuesday), 'tuesday lunch');
   assert(!/pechuga a la plancha/i.test(tuesday), 'tuesday is not monday');
 
   await page.clock.setFixedTime(new Date(2026, 9, 26, 8, 0, 0));
   await page.reload({ waitUntil: 'load' });
   const nextMonday = await openComida(page);
-  assert(/desayuno a: 3 huevos revueltos/i.test(nextMonday), 'new week expands the updated desayuno A');
+  assert(/desayuno a: 3 huevos revueltos \+ 2 fetas de jamón/i.test(nextMonday), 'new week expands the updated desayuno A');
   assert(/200 g pechuga a la plancha/i.test(nextMonday) && /yogur griego \+ fruta/i.test(nextMonday), '2026-10-26 keeps lunch and snack');
   assert((await page.locator('[data-hoy]').getAttribute('data-dia')) === '2026-10-26', 'new monday uses the device date');
 
   await page.clock.setFixedTime(new Date(2026, 10, 2, 8, 0, 0));
+  await page.reload({ waitUntil: 'load' });
+  const novMonday = await openComida(page);
+  assert(/desayuno a: 3 huevos revueltos \+ 2 fetas de jamón/i.test(novMonday), '2 Nov expands the updated desayuno A');
+  assert(/200 g pechuga a la plancha/i.test(novMonday) && /50 g de queso magro/i.test(novMonday), '2026-11-02 keeps lunch and dinner');
+  assert((await page.locator('[data-hoy]').getAttribute('data-dia')) === '2026-11-02', '2 Nov uses the device date');
+
+  await page.clock.setFixedTime(new Date(2026, 10, 9, 8, 0, 0));
   await page.reload({ waitUntil: 'load' });
   await page.locator('[data-comida]').click();
   await page.getByText(/no hay menú cargado para hoy/i).waitFor();
