@@ -75,7 +75,7 @@ button.comida{margin:0 0 12px}
 <script>
 'use strict';
 const KEY='entreno.v1';
-const SCHEMA=3;
+const SCHEMA=4;
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=s=>document.querySelector(s);
@@ -227,12 +227,12 @@ function warmupFor(routine){
 }
 function routineA(){
   return {id:uid(),name:'sentadilla, remo y swing',warmup:warmupA(),exercises:[
-    makeEx('sentadilla goblet',4,'12','14',75,''),
-    makeEx('press de hombros a una mano',3,'10','8',60,'por brazo'),
+    makeEx('sentadilla goblet',4,'16','14',75,''),
+    makeEx('press de hombros a una mano',3,'12','8',60,'por brazo'),
     makeEx('swing',4,'15','14',75,''),
     makeEx('flexiones de brazos',3,'máx','',60,'dejando 2 en reserva'),
     makeEx('plancha',3,'','',45,'',35),
-    makeEx('curl de bíceps',2,'12','8',45,'')
+    makeEx('curl de bíceps',3,'12','8',45,'')
   ]};
 }
 function routineB(){
@@ -254,7 +254,7 @@ function applyStandard(r,fresh){
   r.exercises=fresh.exercises;
   r.warmup=fresh.warmup;
 }
-/* schema 3 replaces the two standard routines. any other name is left alone,
+/* schema 3 and later replace the two standard routines. any other name is left alone,
    and history is never rewritten. */
 function refreshStandardRoutines(S){
   (S.routines||[]).forEach(r=>{
@@ -268,7 +268,7 @@ function refreshStandardRoutines(S){
   }
 }
 /* schema 2 renames legacy routines, adds wednesday if it was never there,
-   and attaches a warm-up. schema 3 then refreshes the two standard routines. */
+   and attaches a warm-up. later schemas refresh the two standard routines. */
 function migrate(S){
   const from=S.schema||0;
   if(from>=SCHEMA)return S;
@@ -289,7 +289,7 @@ function migrate(S){
       if(ar)S.active.name=ar.name;
     }
   }
-  if(from<3)refreshStandardRoutines(S);
+  if(from<4)refreshStandardRoutines(S);
   S.schema=SCHEMA;
   return S;
 }

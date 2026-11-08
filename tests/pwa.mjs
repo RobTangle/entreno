@@ -75,14 +75,18 @@ async function freshFlow(browser) {
   assert(/progres/i.test(primerText), 'antes de empezar mentions gradual progress');
 
   const state = await readState(page);
-  assert(state.schema === 3, 'fresh state is schema 3');
+  assert(state.schema === 4, 'fresh state is schema 4');
   const a = state.routines.find((r) => r.name === 'sentadilla, remo y swing');
   const b = state.routines.find((r) => r.name === 'tren superior y glúteos');
   assert(a && b, 'both default routines are stored');
-  assert(a.exercises[0].name === 'sentadilla goblet' && a.exercises[0].sets === 4 && a.exercises[0].reps === '12', 'routine A keeps the goblet prescription');
+  assert(a.exercises[0].name === 'sentadilla goblet' && a.exercises[0].sets === 4 && a.exercises[0].reps === '16', 'routine A goblet is 4x16');
   assert(!a.exercises.some((e) => /remo/i.test(e.name)), 'routine A has no row');
+  const pressA = a.exercises[1];
+  assert(pressA.name === 'press de hombros a una mano' && pressA.sets === 3 && pressA.reps === '12' && pressA.weight === '8', 'press de hombros 8kg 3x12');
+  const planchaA = a.exercises.find((e) => e.name === 'plancha');
+  assert(planchaA && planchaA.mode === 'time' && planchaA.sets === 3 && planchaA.secs === 35, 'plancha stays 3x35 seconds');
   const curlA = a.exercises.at(-1);
-  assert(curlA.name === 'curl de bíceps' && curlA.sets === 2 && curlA.reps === '12' && curlA.weight === '8', 'curl de bíceps 8kg 2x12 at the end of A');
+  assert(curlA.name === 'curl de bíceps' && curlA.sets === 3 && curlA.reps === '12' && curlA.weight === '8', 'curl de bíceps 8kg 3x12 at the end of A');
   assert(a.exercises.map((e) => e.name).join(',') === [
     'sentadilla goblet',
     'press de hombros a una mano',
@@ -309,7 +313,7 @@ async function migrationFlow(browser) {
   await page.getByText('tren superior y glúteos', { exact: true }).waitFor();
 
   let state = await readState(page);
-  assert(state.schema === 3, 'migration bumps schema to 3');
+  assert(state.schema === 4, 'migration bumps schema to 4');
   assert(state.equipment === 'mis kettlebells', 'migration keeps equipment');
   assert(state.history.length === 1 && state.history[0].id === 'h1', 'migration keeps history entries');
   assert(state.history[0].routine === 'fuerza A (kettlebells)', 'migration does not rewrite history names');
@@ -321,7 +325,10 @@ async function migrationFlow(browser) {
   const a = state.routines.find((r) => r.id === 'rA');
   assert(a && a.name === 'sentadilla, remo y swing', 'fuerza A (kettlebells) is renamed');
   assert(!a.exercises.some((e) => /remo/i.test(e.name)) && a.exercises.at(-1).name === 'curl de bíceps', 'standard A routine drops the row and adds the curl');
-  assert(a.exercises[0].name === 'sentadilla goblet' && a.exercises[0].sets === 4, 'standard A routine uses the current prescription');
+  assert(a.exercises[0].name === 'sentadilla goblet' && a.exercises[0].sets === 4 && a.exercises[0].reps === '16', 'standard A routine uses the current goblet prescription');
+  assert(a.exercises.find((e) => e.name === 'press de hombros a una mano').reps === '12', 'migrated press de hombros is 3x12');
+  assert(a.exercises.find((e) => e.name === 'curl de bíceps').sets === 3, 'migrated curl is 3x12');
+  assert(a.exercises.find((e) => e.name === 'plancha').secs === 35, 'migrated plancha stays at 35 seconds');
   assert(a.warmup.some((d) => /flexiones de codo/i.test(d.name)) && a.warmup.some((d) => /swings livianos/i.test(d.name)), 'existing A routine receives the current A warm-up');
   const b = state.routines.find((r) => r.name === 'tren superior y glúteos');
   assert(b && b.exercises.some((e) => e.name === 'pullover con kettlebell') && b.warmup.some((d) => /dead bug/i.test(d.name)), 'added wednesday routine includes its warm-up');
@@ -349,6 +356,47 @@ async function migrationFlow(browser) {
   assert(state.routines.find((r) => r.id === 'custom').exercises[0].note === 'queda', 'custom routine survives reload');
 
   assert(logs.length === 0, 'migration flow has no console errors: ' + logs.join(' | '));
+  await context.close();
+}
+
+async function schema3RefreshFlow(browser) {
+  const context = await browser.newContext({ serviceWorkers: 'allow' });
+  const page = await context.newPage();
+  const logs = track(page);
+  const old = {
+    schema: 3,
+    equipment: 'kettlebells',
+    history: [{
+      id: 'h3',
+      date: '2026-11-06T12:00:00.000Z',
+      routine: 'sentadilla, remo y swing',
+      minutes: 20,
+      exercises: [{ name: 'sentadilla goblet', sets: [{ reps: '12', kg: '14' }] }],
+    }],
+    active: null,
+    routines: [{
+      id: 'rA',
+      name: 'sentadilla, remo y swing',
+      warmup: [{ id: 'w', name: 'viejo', secs: 30, cue: 'anterior', guide: '' }],
+      exercises: [{ id: 'e1', name: 'sentadilla goblet', sets: 4, mode: 'reps', reps: '12', secs: 0, weight: '14', rest: 75, note: '' }],
+    }],
+  };
+  await page.addInitScript((payload) => {
+    if (!localStorage.getItem('entreno.v1')) localStorage.setItem('entreno.v1', JSON.stringify(payload));
+  }, old);
+  await page.goto(URL, { waitUntil: 'load' });
+  const state = await readState(page);
+  const a = state.routines.find((r) => r.id === 'rA');
+  const press = a.exercises.find((e) => e.name === 'press de hombros a una mano');
+  const curl = a.exercises.find((e) => e.name === 'curl de bíceps');
+  const plancha = a.exercises.find((e) => e.name === 'plancha');
+  assert(state.schema === 4, 'schema 3 refreshes to 4');
+  assert(a.exercises[0].sets === 4 && a.exercises[0].reps === '16', 'stored goblet becomes 4x16');
+  assert(press && press.sets === 3 && press.reps === '12', 'stored press de hombros becomes 3x12');
+  assert(curl && curl.sets === 3 && curl.reps === '12', 'stored curl becomes 3x12');
+  assert(plancha && plancha.secs === 35, 'stored plancha stays at 35 seconds');
+  assert(state.history[0].id === 'h3' && state.history[0].exercises[0].sets[0].reps === '12', 'schema 4 keeps the old goblet history');
+  assert(logs.length === 0, 'schema 3 refresh has no console errors: ' + logs.join(' | '));
   await context.close();
 }
 
@@ -592,7 +640,7 @@ async function bodyweightFlow(browser) {
   assert(String(byName['otro sin carga'].reps) === '12' && !byName['otro sin carga'].kg, 'zero load logs reps only');
   assert(state.history.some((h) => h.id === 'old' && h.exercises[0].sets[0].kg === '14'), 'migration does not rewrite old history');
   const sw = await (await fetch(`http://127.0.0.1:${PORT}/sw.js`)).text();
-  assert(sw.includes('entreno-v5'), 'service worker cache was bumped');
+  assert(sw.includes('entreno-v6'), 'service worker cache was bumped');
   assert(logs.length === 0, 'bodyweight flow has no console errors: ' + logs.join(' | '));
   await context.close();
 }
@@ -663,6 +711,18 @@ async function comidaFlow(browser) {
 
   await page.clock.setFixedTime(new Date(2026, 10, 9, 8, 0, 0));
   await page.reload({ waitUntil: 'load' });
+  const nov9 = await openComida(page);
+  assert(/desayuno a: 3 huevos revueltos \+ 2 fetas de jamón/i.test(nov9), '9 Nov expands desayuno A');
+  assert(/200 g pechuga a la plancha/i.test(nov9) && /hamburguesas caseras/i.test(nov9), '9 Nov keeps lunch and dinner');
+  assert((await page.locator('[data-hoy]').getAttribute('data-dia')) === '2026-11-09', '9 Nov uses the device date');
+  await page.locator('[data-semana-toggle]').click();
+  const novDays = await page.locator('[data-semana] [data-dia]').evaluateAll((els) => els.map((el) => el.getAttribute('data-dia')));
+  assert(novDays.join(',') === '2026-11-10,2026-11-11,2026-11-12,2026-11-13,2026-11-14,2026-11-15', '9 Nov week lists tuesday to sunday');
+  assert(/antes de correr/i.test(await page.locator('[data-semana]').innerText()), 'saturday notes the run');
+  assert(/200 g peceto/i.test(await page.locator('[data-semana]').innerText()), 'friday lunch stays in the week');
+
+  await page.clock.setFixedTime(new Date(2026, 10, 16, 8, 0, 0));
+  await page.reload({ waitUntil: 'load' });
   await page.locator('[data-comida]').click();
   await page.getByText(/no hay menú cargado para hoy/i).waitFor();
   await page.locator('[data-semana-toggle]').click();
@@ -706,7 +766,7 @@ async function comidaFlow(browser) {
   assert(/desayuno a: 3 huevos revueltos/i.test(fresh) && !/sentinel/i.test(fresh), 'online menu.json is network-first over a stale cache');
 
   const sw = await (await fetch(`http://127.0.0.1:${PORT}/sw.js`)).text();
-  assert(sw.includes('entreno-v5') && /menu\.json/.test(sw) && /networkFirstExact/.test(sw), 'menu.json uses its own network-first cache');
+  assert(sw.includes('entreno-v6') && /menu\.json/.test(sw) && /networkFirstExact/.test(sw), 'menu.json uses its own network-first cache');
   assert(logs.length === 0, 'comida flow has no console errors: ' + logs.join(' | '));
   await context.close();
 }
@@ -720,6 +780,7 @@ const browser = await chromium.launch({
 try {
   await freshFlow(browser);
   await migrationFlow(browser);
+  await schema3RefreshFlow(browser);
   await fuerzaBFlow(browser);
   await straightMode(browser);
   await circuitMode(browser);

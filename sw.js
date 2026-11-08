@@ -1,7 +1,7 @@
 'use strict';
 /* network-first for the app shell and menu.json so a publish and a new
    week of meals reach installed phones. images are cached for offline use. */
-const CACHE = 'entreno-v5';
+const CACHE = 'entreno-v6';
 const SHELL = ['index.html', './', 'menu.json'];
 const IMAGES = [
   'img/01-sentadilla-goblet_75b3.png',

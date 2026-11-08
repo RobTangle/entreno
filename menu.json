@@ -129,6 +129,48 @@
       "almuerzo": "pollo o lomo 200 g + ensaladas",
       "merienda": "yogur griego + fruta",
       "cena": "ensalada completa con 150 g de pollo y 2 huevos duros"
+    },
+    "2026-11-09": {
+      "desayuno": "des A",
+      "almuerzo": "200 g pechuga a la plancha + 150 g arroz cocido + ensalada",
+      "merienda": "yogur griego + fruta",
+      "cena": "2 hamburguesas caseras de carne magra + ensalada + 1 huevo"
+    },
+    "2026-11-10": {
+      "desayuno": "des B",
+      "almuerzo": "200 g carne picada especial con zapallitos y cebolla + 1 papa",
+      "merienda": "2 huevos duros + queso magro + manzana",
+      "cena": "220 g muslo de pollo sin piel al horno con calabaza"
+    },
+    "2026-11-11": {
+      "desayuno": "des A",
+      "almuerzo": "200 g bife de nalga + puré de calabaza + ensalada",
+      "merienda": "yogur griego + 1 cucharada de avena + fruta",
+      "cena": "wok de 200 g de pollo con verduras y poco arroz"
+    },
+    "2026-11-12": {
+      "desayuno": "des B",
+      "almuerzo": "milanesas de pollo al horno (250 g) + ensalada",
+      "merienda": "queso magro + 2 fetas de jamón + fruta",
+      "cena": "tortilla de 3 huevos con espinaca y 50 g de queso magro + ensalada"
+    },
+    "2026-11-13": {
+      "desayuno": "des A",
+      "almuerzo": "200 g peceto + batata al horno + ensalada",
+      "merienda": "2 huevos duros + fruta",
+      "cena": "libre arrancando por 200 g de carne o pollo"
+    },
+    "2026-11-14": {
+      "desayuno": "des B a las 9:30 con banana extra (antes de correr)",
+      "almuerzo": "200 g carne magra + 200 g arroz + ensalada",
+      "merienda": "yogur griego + fruta",
+      "cena": "revuelto de 3 huevos con jamón, queso magro y verduras"
+    },
+    "2026-11-15": {
+      "desayuno": "des A",
+      "almuerzo": "pollo o lomo 200 g + ensaladas",
+      "merienda": "yogur griego + fruta",
+      "cena": "ensalada completa con 150 g de pollo y 2 huevos duros"
     }
   }
 }
