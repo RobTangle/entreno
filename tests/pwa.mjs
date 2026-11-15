@@ -723,6 +723,18 @@ async function comidaFlow(browser) {
 
   await page.clock.setFixedTime(new Date(2026, 10, 16, 8, 0, 0));
   await page.reload({ waitUntil: 'load' });
+  const nov16 = await openComida(page);
+  assert(/desayuno a: 3 huevos revueltos \+ 2 fetas de jamón/i.test(nov16), '16 Nov expands desayuno A');
+  assert(/1 papa al horno/i.test(nov16) && /hamburguesas caseras/i.test(nov16), '16 Nov keeps lunch and dinner');
+  assert((await page.locator('[data-hoy]').getAttribute('data-dia')) === '2026-11-16', '16 Nov uses the device date');
+  await page.locator('[data-semana-toggle]').click();
+  const nov16Days = await page.locator('[data-semana] [data-dia]').evaluateAll((els) => els.map((el) => el.getAttribute('data-dia')));
+  assert(nov16Days.join(',') === '2026-11-17,2026-11-18,2026-11-19,2026-11-20,2026-11-21,2026-11-22', '16 Nov week lists tuesday to sunday');
+  assert(/antes de correr/i.test(await page.locator('[data-semana]').innerText()), 'saturday notes the run');
+  assert(/200 g peceto/i.test(await page.locator('[data-semana]').innerText()), 'friday lunch stays in the week');
+
+  await page.clock.setFixedTime(new Date(2026, 10, 23, 8, 0, 0));
+  await page.reload({ waitUntil: 'load' });
   await page.locator('[data-comida]').click();
   await page.getByText(/no hay menú cargado para hoy/i).waitFor();
   await page.locator('[data-semana-toggle]').click();
